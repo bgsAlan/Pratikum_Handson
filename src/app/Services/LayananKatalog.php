@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -53,14 +54,14 @@ final class LayananKatalog
         $harga = new Uang($produk['harga']);
 
         return [
-            'sku'            => $produk['sku'],
-            'nama'           => $produk['nama'],
-            'kategori'       => $kategori->value,
+            'sku' => $produk['sku'],
+            'nama' => $produk['nama'],
+            'kategori' => $kategori->value,
             'kategori_label' => $kategori->label(),
-            'harga'          => $harga->rupiah,
-            'harga_format'   => $harga->format(),
-            'stok'           => $produk['stok'],
-            'tersedia'       => $produk['stok'] > 0,
+            'harga' => $harga->rupiah,
+            'harga_format' => $harga->format(),
+            'stok' => $produk['stok'],
+            'tersedia' => $produk['stok'] > 0,
         ];
     }
 }

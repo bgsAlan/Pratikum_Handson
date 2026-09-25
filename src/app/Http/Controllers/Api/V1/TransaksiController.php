@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
@@ -29,12 +30,12 @@ final class TransaksiController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'item'             => ['required', 'array', 'min:1'],
-            'item.*.sku'       => ['required', 'string'],
+            'item' => ['required', 'array', 'min:1'],
+            'item.*.sku' => ['required', 'string'],
             'item.*.kuantitas' => ['required', 'integer', 'min:1'],
-            'member'           => ['sometimes', 'boolean'],
-            'metode_bayar'     => ['required', 'string', 'in:' . implode(',', array_column(MetodeBayar::cases(), 'value'))],
-            'dibayar'          => ['required_if:metode_bayar,tunai', 'integer', 'min:0'],
+            'member' => ['sometimes', 'boolean'],
+            'metode_bayar' => ['required', 'string', 'in:'.implode(',', array_column(MetodeBayar::cases(), 'value'))],
+            'dibayar' => ['required_if:metode_bayar,tunai', 'integer', 'min:0'],
         ]);
 
         $kasir = $request->attributes->get('kasir');

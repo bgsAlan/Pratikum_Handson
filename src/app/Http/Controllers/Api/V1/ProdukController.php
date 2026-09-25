@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
@@ -17,7 +18,7 @@ final class ProdukController extends Controller
     public function index(Request $request): JsonResponse
     {
         $kategori = $request->string('kategori')->trim()->toString();
-        $cari     = $request->string('cari')->trim()->toString();
+        $cari = $request->string('cari')->trim()->toString();
 
         $produk = $this->katalog->daftar(
             kategori: $kategori !== '' ? $kategori : null,
@@ -27,7 +28,7 @@ final class ProdukController extends Controller
         return response()->json([
             'data' => $produk,
             'meta' => [
-                'jumlah'   => count($produk),
+                'jumlah' => count($produk),
                 'kategori' => $kategori !== '' ? $kategori : 'semua',
             ],
         ]);

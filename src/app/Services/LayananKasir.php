@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -23,7 +24,7 @@ final class LayananKasir
     public function hitung(array $item, bool $member = false): array
     {
         $minimalGrosir = (int) config('pos.grosir.minimal_kuantitas');
-        $persenGrosir  = (float) config('pos.grosir.persen');
+        $persenGrosir = (float) config('pos.grosir.persen');
 
         $baris = [];
         $subtotal = Uang::nol();
@@ -41,22 +42,22 @@ final class LayananKasir
             }
 
             $hargaSatuan = new Uang($produk['harga']);
-            $totalBaris  = $hargaSatuan->kali($kuantitas);
+            $totalBaris = $hargaSatuan->kali($kuantitas);
 
             $diskonBaris = $kuantitas >= $minimalGrosir
                 ? $totalBaris->persen($persenGrosir)
                 : Uang::nol();
 
-            $subtotal   = $subtotal->tambah($totalBaris);
+            $subtotal = $subtotal->tambah($totalBaris);
             $diskonItem = $diskonItem->tambah($diskonBaris);
 
             $baris[] = [
-                'sku'          => $produk['sku'],
-                'nama'         => $produk['nama'],
+                'sku' => $produk['sku'],
+                'nama' => $produk['nama'],
                 'harga_satuan' => $hargaSatuan->rupiah,
-                'kuantitas'    => $kuantitas,
-                'diskon'       => $diskonBaris->rupiah,
-                'total'        => $totalBaris->kurang($diskonBaris)->rupiah,
+                'kuantitas' => $kuantitas,
+                'diskon' => $diskonBaris->rupiah,
+                'total' => $totalBaris->kurang($diskonBaris)->rupiah,
                 'total_format' => $totalBaris->kurang($diskonBaris)->format(),
             ];
         }
@@ -66,22 +67,22 @@ final class LayananKasir
             : Uang::nol();
 
         $totalDiskon = $diskonItem->tambah($diskonMember);
-        $dpp         = $subtotal->kurang($totalDiskon);
-        $ppn         = $dpp->persen((float) config('pos.ppn_persen'));
-        $total       = $dpp->tambah($ppn);
-        $totalBayar  = $total->bulatkanKeAtas((int) config('pos.pembulatan'));
+        $dpp = $subtotal->kurang($totalDiskon);
+        $ppn = $dpp->persen((float) config('pos.ppn_persen'));
+        $total = $dpp->tambah($ppn);
+        $totalBayar = $total->bulatkanKeAtas((int) config('pos.pembulatan'));
 
         return [
-            'item'               => $baris,
-            'subtotal'           => $subtotal->rupiah,
-            'diskon_grosir'      => $diskonItem->rupiah,
-            'diskon_member'      => $diskonMember->rupiah,
-            'total_diskon'       => $totalDiskon->rupiah,
-            'dpp'                => $dpp->rupiah,
-            'ppn'                => $ppn->rupiah,
-            'total'              => $total->rupiah,
-            'pembulatan'         => $totalBayar->kurang($total)->rupiah,
-            'total_bayar'        => $totalBayar->rupiah,
+            'item' => $baris,
+            'subtotal' => $subtotal->rupiah,
+            'diskon_grosir' => $diskonItem->rupiah,
+            'diskon_member' => $diskonMember->rupiah,
+            'total_diskon' => $totalDiskon->rupiah,
+            'dpp' => $dpp->rupiah,
+            'ppn' => $ppn->rupiah,
+            'total' => $total->rupiah,
+            'pembulatan' => $totalBayar->kurang($total)->rupiah,
+            'total_bayar' => $totalBayar->rupiah,
             'total_bayar_format' => $totalBayar->format(),
         ];
     }
@@ -91,11 +92,11 @@ final class LayananKasir
         $metode = MetodeBayar::from($data['metode_bayar']);
         $member = (bool) ($data['member'] ?? false);
 
-        $rincian    = $this->hitung($data['item'], $member);
+        $rincian = $this->hitung($data['item'], $member);
         $totalBayar = new Uang($rincian['total_bayar']);
 
         $dibayar = match ($metode->butuhKembalian()) {
-            true  => new Uang((int) ($data['dibayar'] ?? 0)),
+            true => new Uang((int) ($data['dibayar'] ?? 0)),
             false => $totalBayar,
         };
 
@@ -104,15 +105,15 @@ final class LayananKasir
         }
 
         $transaksi = array_merge([
-            'nomor'        => $this->nomorBaru(),
-            'waktu'        => now()->toIso8601String(),
-            'kasir'        => $kasir,
-            'member'       => $member,
+            'nomor' => $this->nomorBaru(),
+            'waktu' => now()->toIso8601String(),
+            'kasir' => $kasir,
+            'member' => $member,
             'metode_bayar' => $metode->value,
             'metode_label' => $metode->label(),
-            'status'       => 'selesai',
+            'status' => 'selesai',
         ], $rincian, [
-            'dibayar'   => $dibayar->rupiah,
+            'dibayar' => $dibayar->rupiah,
             'kembalian' => $dibayar->kurang($totalBayar)->rupiah,
         ]);
 
@@ -133,8 +134,8 @@ final class LayananKasir
         }
 
         $perubahan = [
-            'status'          => 'batal',
-            'alasan_batal'    => $alasan,
+            'status' => 'batal',
+            'alasan_batal' => $alasan,
             'dibatalkan_oleh' => $olehKasir,
             'dibatalkan_pada' => now()->toIso8601String(),
         ];
