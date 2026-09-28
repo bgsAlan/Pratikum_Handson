@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -16,8 +17,8 @@ final class LayananLaporan
     {
         $selesai = $this->transaksiSelesai($tanggal);
 
-        $omzet  = array_sum(array_column($selesai, 'total_bayar'));
-        $ppn    = array_sum(array_column($selesai, 'ppn'));
+        $omzet = array_sum(array_column($selesai, 'total_bayar'));
+        $ppn = array_sum(array_column($selesai, 'ppn'));
         $diskon = array_sum(array_column($selesai, 'total_diskon'));
         $jumlah = count($selesai);
 
@@ -27,13 +28,13 @@ final class LayananLaporan
         }
 
         return [
-            'tanggal'          => $tanggal,
+            'tanggal' => $tanggal,
             'jumlah_transaksi' => $jumlah,
-            'omzet'            => $omzet,
-            'omzet_format'     => (new Uang($omzet))->format(),
-            'total_diskon'     => $diskon,
-            'total_ppn'        => $ppn,
-            'rata_rata_struk'  => $jumlah > 0 ? intdiv($omzet, $jumlah) : 0,
+            'omzet' => $omzet,
+            'omzet_format' => (new Uang($omzet))->format(),
+            'total_diskon' => $diskon,
+            'total_ppn' => $ppn,
+            'rata_rata_struk' => $jumlah > 0 ? intdiv($omzet, $jumlah) : 0,
             'per_metode_bayar' => $perMetode,
         ];
     }
@@ -45,13 +46,13 @@ final class LayananLaporan
             foreach ($transaksi['item'] as $baris) {
                 $sku = $baris['sku'];
                 $rekap[$sku] ??= [
-                    'sku'        => $sku,
-                    'nama'       => $baris['nama'],
-                    'kuantitas'  => 0,
+                    'sku' => $sku,
+                    'nama' => $baris['nama'],
+                    'kuantitas' => 0,
                     'pendapatan' => 0,
                 ];
 
-                $rekap[$sku]['kuantitas']  += $baris['kuantitas'];
+                $rekap[$sku]['kuantitas'] += $baris['kuantitas'];
                 $rekap[$sku]['pendapatan'] += $baris['total'];
             }
         }
