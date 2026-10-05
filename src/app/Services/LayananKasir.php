@@ -111,7 +111,6 @@ final class LayananKasir
             'total'              => $total->rupiah,
             'pembulatan'         => $totalBayar->kurang($total)->rupiah,
             'total_bayar'        => $totalBayar->rupiah,
-            'total_bayar_format' => $totalBayar->format(),
         ];
     }
     public function proses(array $data, string $kasir): array

@@ -47,7 +47,7 @@ final class TransaksiContohSeeder extends Seeder
                 ['sku' => 'SKU-009', 'kuantitas' => 20],
                 ['sku' => 'SKU-010', 'kuantitas' => 20],
             ],
-            'metode_bayar' => 'kartu_debit',
+            'metode_bayar' => 'Kartu Debit',
         ], 'Bambang Saputra');
 
         $kasir->batalkan(
