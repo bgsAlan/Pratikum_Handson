@@ -1,4 +1,3 @@
-
 <?php
 
 declare(strict_types=1);
@@ -11,7 +10,7 @@ final class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Kategori dan produk harus dibuat sebelum transaksi.
+        // URUTAN PENTING: transaksi contoh membutuhkan produk yang sudah ada.
         $this->call([
             KategoriProdukSeeder::class,
             TransaksiContohSeeder::class,
