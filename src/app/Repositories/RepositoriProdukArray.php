@@ -5,44 +5,75 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Contracts\RepositoriProduk;
+use App\Models\Produk;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Sumber data sementara untuk Modul 3.
- * Diganti implementasi Eloquent pada Modul 4.
+ * Pengganti RepositoriProdukArray dari Modul 3.
+ *
+ * Bentuk nilai kembaliannya sengaja dijaga persis sama: array asosiatif
+ * berisi sku, nama, kategori, harga, dan stok. Karena itulah LayananKatalog,
+ * LayananKasir, dan seluruh controller tidak berubah satu baris pun.
  */
-final class RepositoriProdukArray implements RepositoriProduk
+final class RepositoriProdukEloquent implements RepositoriProduk
 {
-    private const KATALOG = [
-        'SKU-001' => ['nama' => 'Beras Pandan Wangi 5 kg', 'kategori' => 'kebutuhan_rumah', 'harga' => 72000, 'stok' => 40],
-        'SKU-002' => ['nama' => 'Minyak Goreng 1 L', 'kategori' => 'kebutuhan_rumah', 'harga' => 18500, 'stok' => 120],
-        'SKU-003' => ['nama' => 'Gula Pasir 1 kg', 'kategori' => 'kebutuhan_rumah', 'harga' => 15500, 'stok' => 85],
-        'SKU-004' => ['nama' => 'Kopi Bubuk 200 g', 'kategori' => 'minuman', 'harga' => 24000, 'stok' => 60],
-        'SKU-005' => ['nama' => 'Teh Celup 25 sachet', 'kategori' => 'minuman', 'harga' => 9500, 'stok' => 0],
-        'SKU-006' => ['nama' => 'Mie Instan Goreng', 'kategori' => 'makanan', 'harga' => 3400, 'stok' => 480],
-        'SKU-007' => ['nama' => 'Susu UHT 1 L', 'kategori' => 'minuman', 'harga' => 19000, 'stok' => 36],
-        'SKU-008' => ['nama' => 'Sabun Mandi Batang', 'kategori' => 'kebutuhan_rumah', 'harga' => 5200, 'stok' => 150],
-        'SKU-009' => ['nama' => 'Buku Tulis 38 lembar', 'kategori' => 'alat_tulis', 'harga' => 4800, 'stok' => 200],
-        'SKU-010' => ['nama' => 'Pena Gel Hitam', 'kategori' => 'alat_tulis', 'harga' => 3900, 'stok' => 240],
-    ];
-
     public function semua(): array
     {
-        return array_map(
-            static fn (string $sku): array => self::baris($sku),
-            array_keys(self::KATALOG),
-        );
+        return $this->dasar()
+            ->orderBy('produk.nama')
+            ->get()
+            ->map($this->keArray(...))
+            ->all();
     }
-
     public function cariSku(string $sku): ?array
     {
-        $sku = strtoupper(trim($sku));
-
-        return isset(self::KATALOG[$sku]) ? self::baris($sku) : null;
+        $produk = $this->dasar(aktifSaja: false)
+            ->where('produk.sku', strtoupper(trim($sku)))
+            ->first();
+        return $produk === null ? null : $this->keArray($produk);
     }
-
-    /** @return array<string, mixed> */
-    private static function baris(string $sku): array
+    public function kunciStok(string $sku): int
     {
-        return ['sku' => $sku, ...self::KATALOG[$sku]];
+        // lockForUpdate() menahan baris ini sampai transaksi basis data
+        // selesai, sehingga dua kasir yang menjual barang terakhir pada
+        // saat bersamaan tidak dapat membaca stok yang sama.
+        return (int) Produk::query()
+            ->where('sku', strtoupper(trim($sku)))
+            ->lockForUpdate()
+            ->value('stok');
+    }
+    public function ubahStok(string $sku, int $selisih): void
+    {
+        // increment() menghasilkan satu perintah UPDATE atomik:
+        // UPDATE produk SET stok = stok + ? WHERE sku = ?
+        // Ini berbeda dari membaca stok ke PHP lalu menuliskannya kembali,
+        // yang membuka celah balapan (race condition).
+        // Praktik Pemrograman Back End · Hands-On Modul 4 · Studi Kasus Point of Sales
+        // D3 Teknik Informatika – Sekolah Vokasi UNS | Halaman 23 dari 47
+        Produk::query()
+            ->where('sku', strtoupper(trim($sku)))
+            ->increment('stok', $selisih);
+    }
+    /**
+     * Kueri dasar: produk digabung dengan kategori lewat join eksplisit.
+     * Relasi Eloquent (belongsTo/hasMany) baru diperkenalkan pada Modul 5.
+     */
+    private function dasar(bool $aktifSaja = true): Builder
+    {
+        return Produk::query()
+            ->when($aktifSaja, fn(Builder $q) => $q->aktif())
+            ->join('kategori', 'kategori.id', '=', 'produk.kategori_id')
+            ->select(['produk.*', 'kategori.kode as kategori_kode']);
+    }
+    /** @return array<string, mixed> */
+    private function keArray(Produk $produk): array
+    {
+        return [
+            'sku' => $produk->sku,
+            'nama' => $produk->nama,
+            'kategori' => $produk->kategori_kode,
+            'harga' => $produk->harga,
+            'stok' => $produk->stok,
+        ];
     }
 }

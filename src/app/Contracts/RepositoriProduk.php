@@ -19,4 +19,8 @@ interface RepositoriProduk
 
     /** @return array<string, mixed>|null */
     public function cariSku(string $sku): ?array;
+
+    public function kunciStok(string $sku): int;
+    /** Nilai $selisih negatif mengurangi stok, positif mengembalikannya. */
+    public function ubahStok(string $sku, int $selisih): void;
 }
