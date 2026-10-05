@@ -1,4 +1,3 @@
-```php
 <?php
 
 declare(strict_types=1);
@@ -50,4 +49,3 @@ final class ProdukFactory extends Factory
         return $this->state(fn () => ['aktif' => false]);
     }
 }
-```
