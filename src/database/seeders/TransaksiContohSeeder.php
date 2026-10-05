@@ -8,11 +8,19 @@ namespace Database\Seeders;
 use App\Services\LayananKasir;
 use Illuminate\Database\Seeder;
 
+/**
+ * Tiga struk contoh.
+ *
+ * Seeder ini TIDAK menulis ke tabel transaksi secara langsung, melainkan
+ * memanggil LayananKasir. Akibatnya seluruh aturan AB-1 sampai AB-11
+ * ikut berjalan: diskon dihitung, PPN ditambahkan, stok berkurang.
+ * Data contoh karena itu selalu konsisten dengan aturan bisnis yang berlaku.
+ */
 final class TransaksiContohSeeder extends Seeder
 {
     public function run(LayananKasir $kasir): void
     {
-        // Transaksi 1: member, pembayaran tunai.
+        // Struk 1 — member, tunai, satu baris memenuhi syarat diskon grosir
         $kasir->proses([
             'item' => [
                 ['sku' => 'SKU-006', 'kuantitas' => 12],
@@ -24,7 +32,7 @@ final class TransaksiContohSeeder extends Seeder
             'dibayar' => 150_000,
         ], 'Bambang Saputra');
 
-        // Transaksi 2: non-member, pembayaran QRIS.
+        // Struk 2 — non-member, QRIS (dianggap selalu dibayar pas)
         $kasir->proses([
             'item' => [
                 ['sku' => 'SKU-001', 'kuantitas' => 1],
@@ -33,7 +41,8 @@ final class TransaksiContohSeeder extends Seeder
             'metode_bayar' => 'qris',
         ], 'Bambang Saputra');
 
-        // Transaksi 3: dibuat lalu dibatalkan.
+        // Struk 3 — dibuat lalu dibatalkan, untuk menguji laporan
+        // dan pengembalian stok (AB-11).
         $struk = $kasir->proses([
             'item' => [
                 ['sku' => 'SKU-009', 'kuantitas' => 20],
@@ -45,7 +54,7 @@ final class TransaksiContohSeeder extends Seeder
         $kasir->batalkan(
             $struk['nomor'],
             'Pesanan grosir dibatalkan pembeli',
-            'Bagas Prakoso'
+            'Bagas Prakoso',
         );
     }
 }
