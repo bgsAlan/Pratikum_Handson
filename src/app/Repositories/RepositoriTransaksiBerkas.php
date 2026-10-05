@@ -5,59 +5,103 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Contracts\RepositoriTransaksi;
-use Illuminate\Support\Facades\Storage;
+use App\Models\ItemTransaksi;
+use App\Models\Produk;
+use App\Models\Transaksi;
 
 /**
- * Menyimpan struk pada satu berkas JSON di storage/app/private/pos.
- * Hanya untuk latihan. Tidak ada penguncian berkas, sehingga dua
- * penyimpanan bersamaan dapat saling menimpa. Diganti basis data
- * pada Modul 4.
+ * Pengganti RepositoriTransaksiBerkas dari Modul 3.
+ *
+ * Berkas JSON hilang, beserta seluruh risiko dua kasir yang saling
+ * menimpa data. Basis data menangani penguncian baris untuk kita.
  */
-final class RepositoriTransaksiBerkas implements RepositoriTransaksi
+final class RepositoriTransaksiEloquent implements RepositoriTransaksi
 {
-    private const BERKAS = 'pos/transaksi.json';
-
-    public function semua(): array
+    public function tanggal(string $tanggal): array
     {
-        if (! Storage::disk('local')->exists(self::BERKAS)) {
-            return [];
-        }
-
-        $isi = Storage::disk('local')->get(self::BERKAS);
-
-        return json_decode($isi ?? '[]', true, 512, JSON_THROW_ON_ERROR) ?: [];
+        return Transaksi::query()
+            ->tanggal($tanggal)
+            ->orderBy('nomor')
+            ->get()
+            ->map($this->keArray(...))
+            ->all();
     }
-
     public function cariNomor(string $nomor): ?array
     {
-        return $this->semua()[$nomor] ?? null;
+        $transaksi = Transaksi::query()->where('nomor', $nomor)->first();
+        return $transaksi === null ? null : $this->keArray($transaksi);
     }
-
     public function simpan(array $transaksi): void
     {
-        $semua = $this->semua();
-        $semua[$transaksi['nomor']] = $transaksi;
-        $this->tulis($semua);
+        $item = $transaksi['item'];
+        unset($transaksi['item']);
+        $baris = Transaksi::create($transaksi);
+        // Peta sku -> id agar tidak menembak basis data sekali per baris
+        // struk. Masalah kueri berulang (N+1) dibahas tuntas pada Modul 5.
+        $idProduk = Produk::query()
+            ->whereIn('sku', array_column($item, 'sku'))
+            ->pluck('id', 'sku');
+        ItemTransaksi::insert(array_map(
+            static fn(array $b): array => [
+                'transaksi_id' => $baris->id,
+                'produk_id' => $idProduk[$b['sku']],
+                'sku' => $b['sku'],
+                'nama_produk' => $b['nama'],
+                'harga_satuan' => $b['harga_satuan'],
+                'kuantitas' => $b['kuantitas'],
+                'diskon' => $b['diskon'],
+                'total' => $b['total'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            $item,
+        ));
     }
-
     public function perbarui(string $nomor, array $perubahan): void
     {
-        $semua = $this->semua();
-
-        if (! isset($semua[$nomor])) {
-            return;
-        }
-
-        $semua[$nomor] = array_merge($semua[$nomor], $perubahan);
-        $this->tulis($semua);
+        Transaksi::query()->where('nomor', $nomor)->update($perubahan);
     }
-
-    /** @param array<string, array<string, mixed>> $data */
-    private function tulis(array $data): void
+    public function urutanBerikutnya(string $tanggal): int
     {
-        Storage::disk('local')->put(
-            self::BERKAS,
-            json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
-        );
+        return Transaksi::query()
+            ->where('nomor', 'like', 'POS-' . str_replace('-', '', $tanggal) . '-%')
+            ->count() + 1;
+    }
+    /** @return array<string, mixed> */
+    private function keArray(Transaksi $transaksi): array
+    {
+        $item = ItemTransaksi::query()
+            ->where('transaksi_id', $transaksi->id)
+            ->get(['sku', 'nama_produk', 'harga_satuan', 'kuantitas', 'diskon', 'total'])
+            ->map(static fn(ItemTransaksi $i): array => [
+                'sku' => $i->sku,
+                'nama' => $i->nama_produk,
+                'harga_satuan' => $i->harga_satuan,
+                'kuantitas' => $i->kuantitas,
+                'diskon' => $i->diskon,
+                'total' => $i->total,
+            ])
+            ->all();
+        return [
+            'nomor' => $transaksi->nomor,
+            'waktu' => $transaksi->created_at->toIso8601String(),
+            'kasir' => $transaksi->kasir,
+            'member' => $transaksi->member,
+            'metode_bayar' => $transaksi->metode_bayar->value,
+            'metode_label' => $transaksi->metode_bayar->label(),
+            'status' => $transaksi->status->value,
+            'item' => $item,
+            'subtotal' => $transaksi->subtotal,
+            'diskon_grosir' => $transaksi->diskon_grosir,
+            'diskon_member' => $transaksi->diskon_member,
+            'total_diskon' => $transaksi->total_diskon,
+            'dpp' => $transaksi->dpp,
+            'ppn' => $transaksi->ppn,
+            'total' => $transaksi->total,
+            'pembulatan' => $transaksi->pembulatan,
+            'total_bayar' => $transaksi->total_bayar,
+            'dibayar' => $transaksi->dibayar,
+            'kembalian' => $transaksi->kembalian,
+        ];
     }
 }

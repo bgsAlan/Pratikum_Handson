@@ -17,4 +17,5 @@ interface RepositoriTransaksi
 
     /** @param array<string, mixed> $perubahan */
     public function perbarui(string $nomor, array $perubahan): void;
+    public function urutanBerikutnya(string $tanggal): int;
 }
