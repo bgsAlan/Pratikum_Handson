@@ -14,6 +14,7 @@ final class DatabaseSeeder extends Seeder
         $this->call([
             KategoriProdukSeeder::class,
             TransaksiContohSeeder::class,
+            RiwayatPenjualanSeeder::class,
         ]);
     }
 }
