@@ -14,6 +14,7 @@ final class RepositoriTransaksiEloquent implements RepositoriTransaksi
     public function tanggal(string $tanggal): array
     {
         return Transaksi::query()
+            ->with('item')
             ->tanggal($tanggal)
             ->orderBy('nomor')
             ->get()
@@ -23,7 +24,10 @@ final class RepositoriTransaksiEloquent implements RepositoriTransaksi
 
     public function cariNomor(string $nomor): ?array
     {
-        $transaksi = Transaksi::query()->where('nomor', $nomor)->first();
+        $transaksi = Transaksi::query()
+            ->with('item')
+            ->where('nomor', $nomor)
+            ->first();
 
         return $transaksi === null ? null : $this->keArray($transaksi);
     }
@@ -72,17 +76,16 @@ final class RepositoriTransaksiEloquent implements RepositoriTransaksi
     /** @return array<string, mixed> */
     private function keArray(Transaksi $transaksi): array
     {
-        $item = ItemTransaksi::query()
-            ->where('transaksi_id', $transaksi->id)
-            ->get(['sku', 'nama_produk', 'harga_satuan', 'kuantitas', 'diskon', 'total'])
+        $item = $transaksi->item
             ->map(static fn (ItemTransaksi $i): array => [
-                'sku'          => $i->sku,
-                'nama'         => $i->nama_produk,
+                'sku' => $i->sku,
+                'nama' => $i->nama_produk,
                 'harga_satuan' => $i->harga_satuan,
-                'kuantitas'    => $i->kuantitas,
-                'diskon'       => $i->diskon,
-                'total'        => $i->total,
-            ])
+                'kuantitas' => $i->kuantitas,
+                'diskon' => $i->diskon,
+                'total' => $i->total,
+                ]
+            )
             ->all();
 
         return [
