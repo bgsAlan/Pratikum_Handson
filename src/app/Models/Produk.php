@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use App\Domain\Uang;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -41,14 +43,25 @@ class Produk extends Model
     public function scopeKategoriKode($query, string $kode)
     {
         // Subquery: relasi Eloquent baru dibahas pada Modul 5.
-        return $query->whereIn(
-            'kategori_id',
-            Kategori::query()->where('kode', $kode)->select('id'),
-        );
+        return $query->whereRelation('kategori', 'kode', $kode);
     }
     /** Dipakai Uang dari Modul 2 agar format rupiah hanya ditulis satu kali. */
     public function hargaFormat(): string
     {
         return (new Uang($this->harga))->format();
+    }
+    public function kategori(): BelongsTo
+    {
+        return $this->belongsTo(Kategori::class, 'kategori_id');
+    }
+
+    public function pemasok(): BelongsToMany
+    {
+        return $this->belongsToMany(Pemasok::class, 'pemasok_produk')
+            ->as('pasokan')
+            ->withPivot(['harga_beli', 'utama'])
+            ->withTimestamps()
+            ->orderByPivot('utama', 'desc')
+            ->orderByPivot('harga_beli');
     }
 }
