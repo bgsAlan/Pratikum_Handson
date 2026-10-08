@@ -39,7 +39,7 @@ Route::prefix('v1/pos')
         Route::get('/produk/{sku}', [ProdukController::class, 'show'])
             ->where('sku', 'SKU-[0-9]{3}')
             ->name('produk.show');
-            
+
         Route::get('/produk/{sku}/pemasok', [ProdukController::class, 'pemasok'])
             ->middleware('peran:supervisor')
             ->where('sku', 'SKU-[0-9]{3}')
@@ -73,5 +73,6 @@ Route::prefix('v1/pos')
 
                 Route::get('/terlaris', [LaporanController::class, 'terlaris'])
                     ->name('terlaris');
+                Route::get('/kategori', [LaporanController::class, 'kategori'])->name('kategori');
             });
     });
