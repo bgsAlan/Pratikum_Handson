@@ -3,6 +3,8 @@ services:
     build:
       context: ./docker/php
     container_name: laravel-app
+    environment:
+      - TZ=Asia/Jakarta
     volumes:
       - ./src:/var/www
     networks:
@@ -26,6 +28,7 @@ services:
     container_name: laravel-db
     restart: unless-stopped
     environment:
+      TZ: Asia/Jakarta
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
