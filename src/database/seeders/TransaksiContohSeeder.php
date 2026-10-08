@@ -40,6 +40,15 @@ final class TransaksiContohSeeder extends Seeder
             'metode_bayar' => 'qris',
         ], 'Bambang Saputra');
 
+        // Struk 2 — non-member, QRIS (dianggap selalu dibayar pas)
+        $kasir->proses([
+            'item' => [
+                ['sku' => 'SKU-001', 'kuantitas' => 1],
+                ['sku' => 'SKU-007', 'kuantitas' => 3],
+            ],
+            'metode_bayar' => 'qris',
+        ], 'Bambang Saputra');
+
         // Struk 3 — dibuat lalu dibatalkan, untuk menguji laporan
         // dan pengembalian stok (AB-11).
         $struk = $kasir->proses([

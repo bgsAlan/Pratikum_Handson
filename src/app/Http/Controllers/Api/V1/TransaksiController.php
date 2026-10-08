@@ -39,11 +39,24 @@ final class TransaksiController extends Controller
         ]);
 
         $kasir = $request->attributes->get('kasir');
-        $transaksi = $this->kasir->proses($data, $kasir['nama']);
 
-        return response()
-            ->json(['data' => $transaksi], 201)
-            ->header('Location', route('api.v1.pos.transaksi.show', $transaksi['nomor']));
+        try {
+            $transaksi = $this->kasir->proses($data, $kasir['nama']);
+
+            return response()
+                ->json(['data' => $transaksi], 201)
+                ->header('Location', route('api.v1.pos.transaksi.show', $transaksi['nomor']));
+        } catch (\InvalidArgumentException | \DomainException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     public function show(string $nomor): JsonResponse
@@ -61,8 +74,22 @@ final class TransaksiController extends Controller
 
         $kasir = $request->attributes->get('kasir');
 
-        return response()->json([
-            'data' => $this->kasir->batalkan($nomor, $data['alasan'], $kasir['nama']),
-        ]);
+        try {
+            $transaksi = $this->kasir->batalkan($nomor, $data['alasan'], $kasir['nama']);
+
+            return response()->json([
+                'data' => $transaksi,
+            ], 200);
+        } catch (\InvalidArgumentException | \DomainException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 409);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 409);
+        }
     }
 }
