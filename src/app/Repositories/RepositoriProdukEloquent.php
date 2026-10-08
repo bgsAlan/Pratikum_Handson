@@ -61,9 +61,8 @@ final class RepositoriProdukEloquent implements RepositoriProduk
     private function dasar(bool $aktifSaja = true): Builder
     {
         return Produk::query()
-            ->when($aktifSaja, fn(Builder $q) => $q->aktif())
-            ->join('kategori', 'kategori.id', '=', 'produk.kategori_id')
-            ->select(['produk.*', 'kategori.kode as kategori_kode']);
+            ->with('kategori:id,kode')
+            ->when($aktifSaja, fn(Builder $q) => $q->aktif());
     }
     /** @return array<string, mixed> */
     private function keArray(Produk $produk): array
@@ -71,7 +70,7 @@ final class RepositoriProdukEloquent implements RepositoriProduk
         return [
             'sku' => $produk->sku,
             'nama' => $produk->nama,
-            'kategori' => $produk->kategori_kode,
+            'kategori' => $produk->kategori->kode,
             'harga' => $produk->harga,
             'stok' => $produk->stok,
         ];
