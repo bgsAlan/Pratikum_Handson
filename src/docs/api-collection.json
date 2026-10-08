@@ -1,0 +1,683 @@
+{
+  "info": {
+    "_postman_id": "27d5ad06-2a7b-40ed-bb0c-fa11bfa10650",
+    "name": "Barokah Mart POS — Modul 4",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "58757216",
+    "_collection_link": "https://go.postman.co/collection/58757216-27d5ad06-2a7b-40ed-bb0c-fa11bfa10650?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "00 Kesehatan Layanan",
+      "item": [
+        {
+          "name": "GET Ping",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/ping",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "ping"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 Katalog Produk",
+      "item": [
+        {
+          "name": "GET Daftar produk",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/produk",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "produk"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Daftar produk (kategori=minuman)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/produk?kategori=minuman",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "produk"
+              ],
+              "query": [
+                {
+                  "key": "kategori",
+                  "value": "minuman"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Detail produk SKU-004",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });\r\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/produk/SKU-004",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "produk",
+                "SKU-004"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Produk tidak ada (SKU-999)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 Not Found', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/produk/SKU-999",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "produk",
+                "SKU-999"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 Transaksi",
+      "item": [
+        {
+          "name": "POST Transaksi member tunai",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const struk = pm.response.json().data;\r\npm.collectionVariables.set('nomor_struk', struk.nomor);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"item\": [\r\n    { \"sku\": \"SKU-006\", \"kuantitas\": 12 },\r\n    { \"sku\": \"SKU-002\", \"kuantitas\": 2 },\r\n    { \"sku\": \"SKU-004\", \"kuantitas\": 1 }\r\n  ],\r\n  \"member\": true,\r\n  \"metode_bayar\": \"tunai\",\r\n  \"dibayar\": 150000\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/transaksi",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "transaksi"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Detail struk {{nomor_struk}}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/transaksi/POS-20261008-0005",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "transaksi",
+                "POS-20261008-0005"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Transaksi stok habis (SKU-005)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422 Unprocessable', function () { pm.response.to.have.status(422); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"item\": [{ \"sku\": \"SKU-005\", \"kuantitas\": 1 }],\r\n  \"member\": false,\r\n  \"metode_bayar\": \"tunai\",\r\n  \"dibayar\": 50000\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/transaksi",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "transaksi"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Transaksi pembayaran kurang",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 422 Unprocessable', function () {\r\n    pm.response.to.have.status(422);\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"item\": [\r\n    { \"sku\": \"SKU-001\", \"kuantitas\": 1 }\r\n  ],\r\n  \"member\": false,\r\n  \"metode_bayar\": \"tunai\",\r\n  \"dibayar\": 1000\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/transaksi",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "transaksi"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Batal oleh kasir",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403 Forbidden', function () {\r\n    pm.response.to.have.status(403);\r\n});\r\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"alasan\": \"Pelanggan salah mengambil barang\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/transaksi/POS-20261008-0005/batal",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "transaksi",
+                "POS-20261008-0005",
+                "batal"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 Otorisasi dan Pembatalan",
+      "item": [
+        {
+          "name": "POST Batal oleh supervisor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "spv-dev-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"alasan\": \"Pelanggan salah mengambil barang\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/transaksi/POS-20261008-0005/batal",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "transaksi",
+                "POS-20261008-0005",
+                "batal"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Batal untuk kedua kalinya",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409 Conflict', function () {\r\n    pm.response.to.have.status(409);\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "spv-dev-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"alasan\": \"Membatalkan ulang transaksi yang sama\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/transaksi/POS-20261008-0005/batal",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "transaksi",
+                "POS-20261008-0005",
+                "batal"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Stok SKU-006 setelah pembatalan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "spv-dev-001"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/produk/SKU-006",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "produk",
+                "SKU-006"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 Laporan",
+      "item": [
+        {
+          "name": "GET Laporan harian",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {\r\n    pm.response.to.have.status(200);\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/laporan/harian",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "laporan",
+                "harian"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Produk terlaris",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', function () {\r\n    pm.response.to.have.status(200);\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "kasir-dev-001"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/v1/pos/laporan/terlaris",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "v1",
+                "pos",
+                "laporan",
+                "terlaris"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "nomor_struk",
+      "value": ""
+    }
+  ]
+}

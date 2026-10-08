@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Rute publik: dipakai monitoring untuk memastikan layanan hidup.
-Route::get('/ping', fn () => response()->json([
+// Tambahkan prefix 'v1' untuk rute ping
+Route::get('/v1/ping', fn () => response()->json([
     'status' => 'ok',
     'toko' => config('pos.nama_toko'),
     'waktu' => now()->toIso8601String(),
