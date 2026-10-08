@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Route;
 
 // Rute publik: dipakai monitoring untuk memastikan layanan hidup.
 // Tambahkan prefix 'v1' untuk rute ping
-Route::get('/v1/ping', fn () => response()->json([
+Route::get('/v1/ping', fn() => response()->json([
     'status' => 'ok',
     'toko' => config('pos.nama_toko'),
     'waktu' => now()->toIso8601String(),
@@ -39,6 +39,11 @@ Route::prefix('v1/pos')
         Route::get('/produk/{sku}', [ProdukController::class, 'show'])
             ->where('sku', 'SKU-[0-9]{3}')
             ->name('produk.show');
+            
+        Route::get('/produk/{sku}/pemasok', [ProdukController::class, 'pemasok'])
+            ->middleware('peran:supervisor')
+            ->where('sku', 'SKU-[0-9]{3}')
+            ->name('produk.pemasok');
 
         /* ---------------- Transaksi ---------------- */
         Route::get('/transaksi', [TransaksiController::class, 'index'])
