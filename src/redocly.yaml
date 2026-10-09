@@ -1,0 +1,13 @@
+# Konfigurasi linter kontrak API. Dibaca otomatis oleh `npx @redocly/cli lint`.
+extends:
+  - recommended
+
+rules:
+  # Dokumen ini dipakai internal tim dan tidak dipublikasikan, sehingga
+  # belum membutuhkan informasi lisensi.
+  info-license: off
+
+  # Contoh yang tidak cocok dengan schema-nya adalah dokumentasi yang berbohong.
+  # Dinaikkan dari peringatan menjadi galat.
+  no-invalid-media-type-examples: error
+  no-invalid-schema-examples: error

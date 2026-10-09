@@ -1,0 +1,686 @@
+openapi: 3.1.0
+
+info:
+  title: API Kasir Barokah Mart
+  version: 0.5.0
+  summary: REST API Point of Sales untuk aplikasi kasir minimarket Barokah Mart.
+  description: |
+    Kontrak resmi antara tim back end dan tim aplikasi kasir.
+
+    **Konvensi umum**
+    - Seluruh nilai uang berupa **bilangan bulat rupiah** (tanpa desimal).
+    - Setiap permintaan wajib membawa header `Accept: application/json`.
+    - Kesalahan domain selalu berbentuk `{ "kesalahan": "...", "pesan": "..." }`
+      ditambah konteks sesuai jenis kesalahannya.
+    - Kesalahan validasi bentuk masukan memakai format bawaan Laravel
+      `{ "message": "...", "errors": { ... } }`.
+
+    **Aturan bisnis** yang disebut pada deskripsi endpoint (AB-1 s.d. AB-14)
+    mengacu pada tabel aturan bisnis di dokumen Hands-On.
+
+    Versi dokumen naik setiap kali kontrak berubah. Versi 1.0.0 dirilis
+    bersama tag rilis akhir proyek.
+  contact:
+    name: Tim Back End Barokah Mart
+    email: backend@barokah-mart.test
+
+servers:
+  - url: /api
+    description: Server Laravel yang sedang melayani dokumen ini
+
+security:
+  - KunciApi: []
+
+tags:
+  - name: Layanan
+    description: Pemeriksaan kesehatan layanan. Tidak memerlukan kunci API.
+  - name: Katalog
+    description: Katalog produk dan informasi pemasok.
+  - name: Transaksi
+    description: Penjualan, struk, dan pembatalan struk.
+  - name: Laporan
+    description: Ringkasan penjualan per tanggal.
+
+paths:
+  /ping:
+    get:
+      tags: [Layanan]
+      operationId: ping
+      summary: Cek layanan hidup
+      security: []
+      responses:
+        '200':
+          description: Layanan hidup.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+              example:
+                status: ok          # CEK: samakan dengan isi asli /api/ping
+
+  /v1/pos/produk:
+    get:
+      tags: [Katalog]
+      operationId: daftarProduk
+      summary: Katalog produk
+      description: Daftar produk aktif. Bisa disaring per kategori dan dicari lewat nama.
+      parameters:
+        - name: kategori
+          in: query
+          required: false
+          description: Kode kategori.
+          schema: { type: string, examples: [kebutuhan_rumah] }
+        - name: cari
+          in: query
+          required: false
+          description: Kata kunci nama produk.     # CEK: nama parameter asli (cari / q / search)
+          schema: { type: string }
+      responses:
+        '200':
+          description: Daftar produk.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Produk' }
+              example:
+                data:
+                  - sku: SKU-001
+                    nama: Beras Pandan Wangi 5 kg
+                    kategori: kebutuhan_rumah
+                    kategori_label: Kebutuhan Rumah Tangga
+                    harga: 72000
+                    harga_format: Rp 72.000
+                    stok: 39
+                    tersedia: true
+        '401': { $ref: '#/components/responses/TanpaKunci' }
+
+  /v1/pos/produk/{sku}:
+    get:
+      tags: [Katalog]
+      operationId: detailProduk
+      summary: Detail satu produk
+      parameters:
+        - $ref: '#/components/parameters/Sku'
+      responses:
+        '200':
+          description: Detail produk.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Produk' }
+              example:
+                data:
+                  sku: SKU-001
+                  nama: Beras Pandan Wangi 5 kg
+                  kategori: kebutuhan_rumah
+                  kategori_label: Kebutuhan Rumah Tangga
+                  harga: 72000
+                  harga_format: Rp 72.000
+                  stok: 39
+                  tersedia: true
+        '401': { $ref: '#/components/responses/TanpaKunci' }
+        '404': { $ref: '#/components/responses/ProdukTidakDitemukan' }
+
+  /v1/pos/produk/{sku}/pemasok:
+    get:
+      tags: [Katalog]
+      operationId: pemasokProduk
+      summary: Pemasok dan margin satu produk
+      description: |
+        Daftar pemasok sebuah produk beserta harga beli dan margin.
+        Pemasok utama selalu berada di urutan pertama.
+
+        **AB-13** — harga beli dan margin adalah rahasia dagang: hanya
+        peran `supervisor` yang boleh melihatnya. Peran `kasir` ditolak 403.
+      parameters:
+        - $ref: '#/components/parameters/Sku'
+      responses:
+        '200':
+          description: Pemasok produk.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ProdukDenganPemasok' }
+              example:
+                data:
+                  sku: SKU-004
+                  nama: Kopi Bubuk 200 g
+                  harga: 24000
+                  pemasok:
+                    - kode: PMS-02
+                      nama: PT Distribusi Minuman Jaya
+                      kota: Semarang
+                      harga_beli: 20400
+                      margin: 3600
+                      margin_persen: 15.0
+                      utama: true
+                    - kode: PMS-01
+                      nama: CV Sumber Pangan Solo
+                      kota: Surakarta
+                      harga_beli: 21100
+                      margin: 2900
+                      margin_persen: 12.1
+                      utama: false
+        '401': { $ref: '#/components/responses/TanpaKunci' }
+        '403': { $ref: '#/components/responses/PeranTidakBerwenang' }
+        '404': { $ref: '#/components/responses/ProdukTidakDitemukan' }
+
+  /v1/pos/transaksi:
+    get:
+      tags: [Transaksi]
+      operationId: daftarTransaksi
+      summary: Daftar struk pada satu tanggal
+      parameters:
+        - $ref: '#/components/parameters/Tanggal'
+      responses:
+        '200':
+          description: Daftar struk (bisa kosong).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Struk' }
+                  meta:
+                    type: object
+                    required: [tanggal, jumlah]
+                    properties:
+                      tanggal: { type: string, format: date }
+                      jumlah: { type: integer }
+              example:
+                data: []
+                meta: { tanggal: '2026-09-14', jumlah: 0 }
+        '401': { $ref: '#/components/responses/TanpaKunci' }
+    post:
+      tags: [Transaksi]
+      operationId: prosesTransaksi
+      summary: Proses penjualan
+      description: |
+        Membuat struk baru dan mengurangi stok. Hanya bisa saat jam buka toko
+        (middleware `jam.buka`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PermintaanTransaksi' }
+            example:
+              item:
+                - { sku: SKU-001, kuantitas: 1 }
+              member: false
+              metode_bayar: qris
+      responses:
+        '201':
+          description: Struk berhasil dibuat.
+          headers:
+            Location:
+              description: Alamat detail struk yang baru dibuat.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Struk' }
+        '401': { $ref: '#/components/responses/TanpaKunci' }
+        '404': { $ref: '#/components/responses/ProdukTidakDitemukan' }
+        '422':
+          description: Stok tidak cukup, pembayaran kurang (AB-9), atau bentuk masukan tidak sah.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/Kesalahan' }
+                  - { $ref: '#/components/schemas/KesalahanValidasi' }
+              examples:
+                stokKurang:
+                  summary: Stok tidak cukup
+                  value:
+                    kesalahan: stok_tidak_cukup
+                    pesan: Stok SKU-001 tidak mencukupi. Diminta 99, tersedia 39.
+                    sku: SKU-001
+                    diminta: 99
+                    tersedia: 39
+                pembayaranKurang:
+                  summary: Uang dibayar kurang dari total (AB-9)
+                  value:
+                    kesalahan: pembayaran_kurang      # CEK: kode & field tambahan dari App\\Exceptions\\PembayaranKurang
+                    pesan: Pembayaran kurang Rp 5.000.
+                    kurang: 5000
+        # CEK: tambahkan respons untuk jam.buka (toko tutup) sesuai kode asli di kode/Modul 3
+
+  /v1/pos/transaksi/{nomor}:
+    get:
+      tags: [Transaksi]
+      operationId: detailTransaksi
+      summary: Detail satu struk
+      parameters:
+        - $ref: '#/components/parameters/Nomor'
+      responses:
+        '200':
+          description: Detail struk.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Struk' }
+        '401': { $ref: '#/components/responses/TanpaKunci' }
+        '404': { $ref: '#/components/responses/TransaksiTidakDitemukan' }
+
+  /v1/pos/transaksi/{nomor}/batal:
+    post:
+      tags: [Transaksi]
+      operationId: batalkanTransaksi
+      summary: Void (batalkan) struk
+      description: Hanya peran `supervisor`. Stok dikembalikan dan jejak pembatalan dicatat.
+      parameters:
+        - $ref: '#/components/parameters/Nomor'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [alasan]
+              properties:
+                alasan: { type: string, minLength: 5, maxLength: 200 }
+            example:
+              alasan: Salah input kuantitas
+      responses:
+        '200':
+          description: Struk dibatalkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Struk' }
+        '401': { $ref: '#/components/responses/TanpaKunci' }
+        '403': { $ref: '#/components/responses/PeranTidakBerwenang' }
+        '404': { $ref: '#/components/responses/TransaksiTidakDitemukan' }
+        '409':
+          description: Struk sudah pernah dibatalkan (AB-10).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Kesalahan' }
+              example:
+                kesalahan: transaksi_sudah_dibatalkan   # CEK: kode asli di App\\Exceptions\\TransaksiSudahDibatalkan
+                pesan: Transaksi POS-20260914-0001 sudah dibatalkan.
+        '422': { $ref: '#/components/responses/ValidasiGagal' }
+
+  /v1/pos/laporan/harian:
+    get:
+      tags: [Laporan]
+      operationId: laporanHarian
+      summary: Ringkasan omzet per tanggal
+      parameters:
+        - $ref: '#/components/parameters/Tanggal'
+      responses:
+        '200':
+          description: Ringkasan harian.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/LaporanHarian' }
+              example:
+                data:
+                  tanggal: '2026-09-14'
+                  jumlah_transaksi: 3
+                  omzet: 250700
+                  omzet_format: Rp 250.700
+                  total_diskon: 0
+                  total_ppn: 24800
+                  rata_rata_struk: 83566
+                  per_metode_bayar: { qris: 100000, tunai: 150700 }
+        '401': { $ref: '#/components/responses/TanpaKunci' }
+
+  /v1/pos/laporan/terlaris:
+    get:
+      tags: [Laporan]
+      operationId: laporanTerlaris
+      summary: Peringkat produk terjual
+      parameters:
+        - $ref: '#/components/parameters/Tanggal'
+        - name: batas
+          in: query
+          required: false
+          description: Jumlah produk. Nilai di luar 1–20 dipotong ke rentang itu, dan `meta.batas` melaporkan nilai yang diterapkan.
+          schema: { type: integer, default: 5 }
+      responses:
+        '200':
+          description: Produk terlaris.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProdukTerlaris' }
+                  meta:
+                    type: object
+                    required: [tanggal, batas]
+                    properties:
+                      tanggal: { type: string, format: date }
+                      batas: { type: integer, minimum: 1, maximum: 20 }
+              example:
+                data:
+                  - { sku: SKU-004, nama: Kopi Bubuk 200 g, kuantitas: 3, pendapatan: 72000 }
+                meta: { tanggal: '2026-09-14', batas: 5 }
+        '401': { $ref: '#/components/responses/TanpaKunci' }
+
+  /v1/pos/laporan/kategori:
+    get:
+      tags: [Laporan]
+      operationId: laporanKategori
+      summary: Penjualan per kategori
+      description: |
+        **AB-14** — produk yang ditarik dari rak tetap dihitung pada laporan
+        tanggal-tanggal sebelumnya.
+      parameters:
+        - $ref: '#/components/parameters/Tanggal'
+      responses:
+        '200':
+          description: Penjualan per kategori.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PenjualanKategori' }
+                  meta:
+                    type: object
+                    required: [tanggal, total_pendapatan]
+                    properties:
+                      tanggal: { type: string, format: date }
+                      total_pendapatan: { $ref: '#/components/schemas/Rupiah' }
+              example:
+                data:
+                  - { kode: kebutuhan_rumah, nama: Kebutuhan Rumah Tangga, kuantitas: 3, pendapatan: 109000 }
+                  - { kode: minuman, nama: Minuman, kuantitas: 4, pendapatan: 81000 }
+                  - { kode: makanan, nama: Makanan, kuantitas: 12, pendapatan: 38760 }
+                  - { kode: alat_tulis, nama: Alat Tulis, kuantitas: 0, pendapatan: 0 }
+                meta: { tanggal: '2026-09-14', total_pendapatan: 228760 }
+        '401': { $ref: '#/components/responses/TanpaKunci' }
+
+components:
+  securitySchemes:
+    KunciApi:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: "Kunci API. Dev: `kasir-dev-001` (kasir), `spv-dev-001` (supervisor)."
+
+  parameters:
+    Sku:
+      name: sku
+      in: path
+      required: true
+      description: Kode produk.
+      schema: { type: string, pattern: '^SKU-[0-9]{3}$', examples: [SKU-004] }
+    Nomor:
+      name: nomor
+      in: path
+      required: true
+      description: Nomor struk.
+      schema: { $ref: '#/components/schemas/NomorStruk' }
+    Tanggal:
+      name: tanggal
+      in: query
+      required: false
+      description: Tanggal (YYYY-MM-DD). Kosong berarti hari ini.
+      schema: { type: string, format: date }
+
+  responses:
+    TanpaKunci:
+      description: Header X-API-Key tidak ada atau tidak dikenal.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Kesalahan' }
+          examples:
+            hilang:
+              summary: Header tidak dikirim
+              value: { kesalahan: kunci_api_hilang, pesan: Header X-API-Key wajib disertakan. }
+            tidakDikenal:
+              summary: Kunci salah
+              value: { kesalahan: kunci_api_tidak_dikenal, pesan: Kunci API tidak dikenal. }
+    PeranTidakBerwenang:
+      description: Peran pemilik kunci API tidak diizinkan melakukan aksi ini.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Kesalahan' }
+          example:
+            kesalahan: peran_tidak_berwenang
+            pesan: 'Aksi ini hanya boleh dilakukan oleh: supervisor.'
+            peran_anda: kasir
+    ProdukTidakDitemukan:
+      description: SKU cocok pola, tetapi tidak ada di katalog.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Kesalahan' }
+          example:
+            kesalahan: produk_tidak_ditemukan
+            pesan: Produk dengan SKU SKU-999 tidak ditemukan.
+            sku: SKU-999
+    TransaksiTidakDitemukan:
+      description: Nomor struk cocok pola, tetapi tidak ada.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Kesalahan' }
+          example:
+            kesalahan: transaksi_tidak_ditemukan
+            pesan: Transaksi POS-20260914-0999 tidak ditemukan.
+            nomor: POS-20260914-0999
+    ValidasiGagal:
+      description: Bentuk masukan tidak sah.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/KesalahanValidasi' }
+          example:
+            message: The alasan field must be at least 5 characters.
+            errors:
+              alasan: [The alasan field must be at least 5 characters.]
+
+  schemas:
+    Rupiah:
+      type: integer
+      description: Nilai uang dalam rupiah bulat.
+      examples: [24000]
+    NomorStruk:
+      type: string
+      pattern: '^POS-[0-9]{8}-[0-9]{4}$'
+      examples: [POS-20260914-0001]
+    MetodeBayar:
+      type: string
+      enum: [tunai, qris, Kartu_Debit]     # CEK: samakan dengan enum MetodeBayar di app/Domain
+    Kesalahan:
+      type: object
+      description: |
+        Kesalahan domain. Nilai `kesalahan` adalah bagian dari kontrak (stabil,
+        boleh dipakai klien untuk percabangan kode). Nilai `pesan` untuk manusia
+        dan boleh berubah kapan saja.
+      required: [kesalahan, pesan]
+      properties:
+        kesalahan: { type: string }
+        pesan: { type: string }
+      additionalProperties: true
+    KesalahanValidasi:
+      type: object
+      required: [message, errors]
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    Produk:
+      type: object
+      required: [sku, nama, kategori, kategori_label, harga, harga_format, stok, tersedia]
+      properties:
+        sku: { type: string }
+        nama: { type: string }
+        kategori: { type: string }
+        kategori_label: { type: string }
+        harga: { $ref: '#/components/schemas/Rupiah' }
+        harga_format: { type: string }
+        stok: { type: integer }
+        tersedia: { type: boolean }
+    Pemasok:
+      type: object
+      required: [kode, nama, kota, harga_beli, margin, margin_persen, utama]
+      properties:
+        kode: { type: string }
+        nama: { type: string }
+        kota: { type: string }
+        harga_beli: { $ref: '#/components/schemas/Rupiah' }
+        margin: { $ref: '#/components/schemas/Rupiah' }
+        margin_persen:
+          type: number
+          description: Angka tampilan, dibulatkan satu desimal. Bukan uang.
+        utama: { type: boolean }
+    ProdukDenganPemasok:
+      type: object
+      required: [sku, nama, harga, pemasok]
+      properties:
+        sku: { type: string }
+        nama: { type: string }
+        harga: { $ref: '#/components/schemas/Rupiah' }
+        pemasok:
+          type: array
+          items: { $ref: '#/components/schemas/Pemasok' }
+    PermintaanTransaksi:
+      type: object
+      required: [item, metode_bayar]
+      properties:
+        item:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [sku, kuantitas]
+            properties:
+              sku: { type: string }
+              kuantitas: { type: integer, minimum: 1 }
+        member: { type: boolean, default: false }
+        metode_bayar: { $ref: '#/components/schemas/MetodeBayar' }
+        dibayar:
+          description: Uang yang diterima. **Wajib** bila `metode_bayar` = `tunai`.
+          $ref: '#/components/schemas/Rupiah'
+    ItemStruk:
+      type: object
+      required: [sku, nama, harga_satuan, kuantitas, diskon, total]
+      properties:
+        sku: { type: string }
+        nama: { type: string }
+        harga_satuan: { $ref: '#/components/schemas/Rupiah' }
+        kuantitas: { type: integer }
+        diskon: { $ref: '#/components/schemas/Rupiah' }
+        total: { $ref: '#/components/schemas/Rupiah' }
+    Struk:
+      type: object
+      required:
+        - nomor
+        - waktu
+        - kasir
+        - member
+        - metode_bayar
+        - metode_label
+        - status
+        - item
+        - subtotal
+        - diskon_grosir
+        - diskon_member
+        - total_diskon
+        - dpp
+        - ppn
+        - total
+        - pembulatan
+        - total_bayar
+        - dibayar
+        - kembalian
+        - alasan_batal
+        - dibatalkan_oleh
+        - dibatalkan_pada
+      properties:
+        nomor: { $ref: '#/components/schemas/NomorStruk' }
+        waktu: { type: string, format: date-time }
+        kasir: { type: string }
+        member: { type: boolean }
+        metode_bayar: { $ref: '#/components/schemas/MetodeBayar' }
+        metode_label: { type: string }
+        status: { type: string, enum: [selesai, batal] }
+        item:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/ItemStruk' }
+        subtotal: { $ref: '#/components/schemas/Rupiah' }
+        diskon_grosir: { $ref: '#/components/schemas/Rupiah' }
+        diskon_member: { $ref: '#/components/schemas/Rupiah' }
+        total_diskon: { $ref: '#/components/schemas/Rupiah' }
+        dpp: { $ref: '#/components/schemas/Rupiah' }
+        ppn: { $ref: '#/components/schemas/Rupiah' }
+        total: { $ref: '#/components/schemas/Rupiah' }
+        pembulatan: { $ref: '#/components/schemas/Rupiah' }
+        total_bayar: { $ref: '#/components/schemas/Rupiah' }
+        dibayar: { $ref: '#/components/schemas/Rupiah' }
+        kembalian: { $ref: '#/components/schemas/Rupiah' }
+        alasan_batal: { type: [string, 'null'] }
+        dibatalkan_oleh: { type: [string, 'null'] }
+        dibatalkan_pada: { type: [string, 'null'], format: date-time }
+    LaporanHarian:
+      type: object
+      required: [tanggal, jumlah_transaksi, omzet, omzet_format, total_diskon, total_ppn, rata_rata_struk, per_metode_bayar]
+      properties:
+        tanggal: { type: string, format: date }
+        jumlah_transaksi: { type: integer }
+        omzet: { $ref: '#/components/schemas/Rupiah' }
+        omzet_format: { type: string }
+        total_diskon: { $ref: '#/components/schemas/Rupiah' }
+        total_ppn: { $ref: '#/components/schemas/Rupiah' }
+        rata_rata_struk: { $ref: '#/components/schemas/Rupiah' }
+        per_metode_bayar:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/Rupiah' }
+    ProdukTerlaris:
+      type: object
+      required: [sku, nama, kuantitas, pendapatan]
+      properties:
+        sku: { type: string }
+        nama: { type: string }
+        kuantitas: { type: integer }
+        pendapatan: { $ref: '#/components/schemas/Rupiah' }
+    PenjualanKategori:
+      type: object
+      required: [kode, nama, kuantitas, pendapatan]
+      properties:
+        kode: { type: string }
+        nama: { type: string }
+        kuantitas: { type: integer }
+        pendapatan: { $ref: '#/components/schemas/Rupiah' }
