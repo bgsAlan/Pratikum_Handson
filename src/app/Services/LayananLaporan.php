@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Kategori;
+use Illuminate\Database\Eloquent\Builder;
 use App\Domain\Uang;
 use App\Models\ItemTransaksi;
 use App\Models\Transaksi;
@@ -28,7 +30,7 @@ final class LayananLaporan
             ->tanggal($tanggal)
             ->groupBy('metode_bayar')
             ->pluck(DB::raw('SUM(total_bayar)'), 'metode_bayar')
-            ->map(static fn ($nilai): int => (int) $nilai)
+            ->map(static fn($nilai): int => (int) $nilai)
             ->all();
 
         $jumlah = (int) $ringkas->jumlah;
@@ -76,12 +78,37 @@ final class LayananLaporan
                     'SUM(item_transaksi.total) AS pendapatan'
                 ),
             ])
-            ->map(static fn ($baris): array => [
+            ->map(static fn($baris): array => [
                 'sku' => $baris->sku,
                 'nama' => $baris->nama,
                 'kuantitas' => (int) $baris->kuantitas,
                 'pendapatan' => (int) $baris->pendapatan,
             ])
             ->all();
+    }
+    /** @return array<int, array<string, mixed>> */
+    public function perKategori(string $tanggal): array
+    {
+        $struk = $this->idStrukSelesai($tanggal);
+        $saring = fn(Builder $q) => $q->whereIn('item_transaksi.transaksi_id', $struk);
+
+        return Kategori::query()
+            ->withSum(['itemTerjual as kuantitas' => $saring], 'item_transaksi.kuantitas')
+            ->withSum(['itemTerjual as pendapatan' => $saring], 'item_transaksi.total')
+            ->orderByDesc('pendapatan')
+            ->orderBy('kode')
+            ->get()
+            ->map(static fn(Kategori $k): array => [
+                'kode'       => $k->kode,
+                'nama'       => $k->nama,
+                'kuantitas'  => (int) $k->kuantitas,
+                'pendapatan' => (int) $k->pendapatan,
+            ])
+            ->all();
+    }
+
+    private function idStrukSelesai(string $tanggal): Builder
+    {
+        return Transaksi::query()->selesai()->tanggal($tanggal)->select('transaksi.id');
     }
 }

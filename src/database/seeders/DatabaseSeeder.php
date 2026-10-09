@@ -13,6 +13,7 @@ final class DatabaseSeeder extends Seeder
         // URUTAN PENTING: transaksi contoh membutuhkan produk yang sudah ada.
         $this->call([
             KategoriProdukSeeder::class,
+            PemasokSeeder::class, 
             TransaksiContohSeeder::class,
             RiwayatPenjualanSeeder::class,
         ]);
