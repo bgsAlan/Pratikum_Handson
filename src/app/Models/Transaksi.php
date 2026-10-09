@@ -9,6 +9,8 @@ use App\Domain\MetodeBayar;
 use App\Domain\StatusTransaksi;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 
 final class Transaksi extends Model
 {
@@ -53,10 +55,16 @@ final class Transaksi extends Model
         return $query->where('status', StatusTransaksi::Selesai);
     }
 
-    public function scopeTanggal($query, string $tanggal)
+    // Langkah 11: menggunakan rentang waktu agar indeks created_at dapat digunakan
+    public function scopeTanggal(Builder $query, string $tanggal): Builder
     {
-        return $query->whereDate('created_at', $tanggal);
+        $awal = CarbonImmutable::parse($tanggal)->startOfDay();
+
+        return $query
+            ->where('transaksi.created_at', '>=', $awal)
+            ->where('transaksi.created_at', '<', $awal->addDay());
     }
+
     public function item(): HasMany
     {
         return $this->hasMany(ItemTransaksi::class, 'transaksi_id');

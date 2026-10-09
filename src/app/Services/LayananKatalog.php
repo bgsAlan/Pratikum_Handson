@@ -64,6 +64,7 @@ final class LayananKatalog
             'tersedia' => $produk['stok'] > 0,
         ];
     }
+}
     public function pemasok(string $sku): array
     {
         $produk = $this->repositori->cariPemasok($sku);

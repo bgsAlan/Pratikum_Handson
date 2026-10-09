@@ -15,6 +15,7 @@ final class DatabaseSeeder extends Seeder
             KategoriProdukSeeder::class,
             PemasokSeeder::class, 
             TransaksiContohSeeder::class,
+            RiwayatPenjualanSeeder::class,
         ]);
     }
 }

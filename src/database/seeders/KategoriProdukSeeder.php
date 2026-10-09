@@ -58,7 +58,7 @@ final class KategoriProdukSeeder extends Seeder
         ]);
 
         Produk::factory()->grosir()->count(4)->create([
-            'kategori_id' => $kategori['alat_tulis']->id,
+            'kategori_id' => $kategori['minuman']->id,
         ]);
 
         Produk::factory()->habis()->count(2)->create([
