@@ -22,7 +22,7 @@ final class LayananKatalog
         if ($kategori !== null) {
             $produk = array_filter(
                 $produk,
-                static fn (array $p): bool => $p['kategori'] === $kategori,
+                static fn(array $p): bool => $p['kategori'] === $kategori,
             );
         }
 
@@ -30,7 +30,7 @@ final class LayananKatalog
             $kunci = mb_strtolower($cari);
             $produk = array_filter(
                 $produk,
-                static fn (array $p): bool => str_contains(mb_strtolower($p['nama']), $kunci),
+                static fn(array $p): bool => str_contains(mb_strtolower($p['nama']), $kunci),
             );
         }
 
@@ -63,5 +63,27 @@ final class LayananKatalog
             'stok' => $produk['stok'],
             'tersedia' => $produk['stok'] > 0,
         ];
+    }
+    public function pemasok(string $sku): array
+    {
+        $produk = $this->repositori->cariPemasok($sku);
+
+        if ($produk === null) {
+            throw new ProdukTidakDitemukan($sku);
+        }
+
+        $produk['pemasok'] = array_map(
+            static function (array $p) use ($produk): array {
+                $margin = $produk['harga'] - $p['harga_beli'];
+
+                return $p + [
+                    'margin'        => $margin,
+                    'margin_persen' => round($margin * 100 / $produk['harga'], 1),
+                ];
+            },
+            $produk['pemasok'],
+        );
+
+        return $produk;
     }
 }

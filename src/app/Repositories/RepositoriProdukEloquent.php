@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Models\Pemasok;
 use App\Contracts\RepositoriProduk;
 use App\Models\Produk;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,6 +25,10 @@ final class RepositoriProdukEloquent implements RepositoriProduk
             ->get()
             ->map($this->keArray(...))
             ->all();
+    }
+    private function normal(string $sku): string
+    {
+        return strtoupper(trim($sku));
     }
     public function cariSku(string $sku): ?array
     {
@@ -61,9 +66,8 @@ final class RepositoriProdukEloquent implements RepositoriProduk
     private function dasar(bool $aktifSaja = true): Builder
     {
         return Produk::query()
-            ->when($aktifSaja, fn(Builder $q) => $q->aktif())
-            ->join('kategori', 'kategori.id', '=', 'produk.kategori_id')
-            ->select(['produk.*', 'kategori.kode as kategori_kode']);
+            ->with('kategori:id,kode')
+            ->when($aktifSaja, fn(Builder $q) => $q->aktif());
     }
     /** @return array<string, mixed> */
     private function keArray(Produk $produk): array
@@ -71,9 +75,35 @@ final class RepositoriProdukEloquent implements RepositoriProduk
         return [
             'sku' => $produk->sku,
             'nama' => $produk->nama,
-            'kategori' => $produk->kategori_kode,
+            'kategori' => $produk->kategori->kode,
             'harga' => $produk->harga,
             'stok' => $produk->stok,
+        ];
+    }
+    public function cariPemasok(string $sku): ?array
+    {
+        $produk = Produk::query()
+            ->with('pemasok')
+            ->where('sku', $this->normal($sku))
+            ->first();
+
+        if ($produk === null) {
+            return null;
+        }
+
+        return [
+            'sku'     => $produk->sku,
+            'nama'    => $produk->nama,
+            'harga'   => $produk->harga,
+            'pemasok' => $produk->pemasok
+                ->map(static fn(Pemasok $p): array => [
+                    'kode'       => $p->kode,
+                    'nama'       => $p->nama,
+                    'kota'       => $p->kota,
+                    'harga_beli' => (int) $p->pasokan->harga_beli,
+                    'utama'      => (bool) $p->pasokan->utama,
+                ])
+                ->all(),
         ];
     }
 }

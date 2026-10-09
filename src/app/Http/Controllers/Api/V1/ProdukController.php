@@ -51,4 +51,10 @@ final class ProdukController extends Controller
             ], 404);
         }
     }
+    public function pemasok(string $sku): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->katalog->pemasok($sku),
+        ]);
+    }
 }
