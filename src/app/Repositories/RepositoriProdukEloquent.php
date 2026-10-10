@@ -8,6 +8,7 @@ use App\Models\Pemasok;
 use App\Contracts\RepositoriProduk;
 use App\Models\Produk;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Pengganti RepositoriProdukArray dari Modul 3.
@@ -36,6 +37,123 @@ final class RepositoriProdukEloquent implements RepositoriProduk
             ->where('produk.sku', strtoupper(trim($sku)))
             ->first();
         return $produk === null ? null : $this->keArray($produk);
+    }
+
+    /**
+     * Mengambil banyak produk dalam satu query utama.
+     *
+     * @param array<int, string> $sku
+     * @return array<string, array<string, mixed>>
+     */
+    public function cariBanyakSku(array $sku): array
+    {
+        $sku = array_values(array_unique(array_map(
+            $this->normal(...),
+            $sku
+        )));
+
+        if ($sku === []) {
+            return [];
+        }
+
+        return $this->dasar(aktifSaja: false)
+            ->whereIn('produk.sku', $sku)
+            ->get()
+            ->mapWithKeys(fn(Produk $produk) => [
+                $produk->sku => [
+                    ...$this->keArray($produk),
+                    '_produk_id' => $produk->id,
+                ],
+            ])
+            ->all();
+    }
+
+    /**
+     * Mengunci stok produk dalam urutan SKU yang konsisten.
+     *
+     * @param array<int, string> $sku
+     * @return array<string, int>
+     */
+    public function kunciBanyakStok(array $sku): array
+    {
+        $sku = array_values(array_unique(array_map(
+            $this->normal(...),
+            $sku
+        )));
+
+        sort($sku);
+
+        if ($sku === []) {
+            return [];
+        }
+
+        return Produk::query()
+            ->whereIn('sku', $sku)
+            ->orderBy('sku')
+            ->lockForUpdate()
+            ->get(['sku', 'stok'])
+            ->mapWithKeys(fn(Produk $produk) => [
+                $produk->sku => (int) $produk->stok,
+            ])
+            ->all();
+    }
+
+    /**
+     * Memperbarui stok beberapa produk menggunakan satu UPDATE CASE.
+     *
+     * @param array<string, int> $perubahan
+     */
+
+
+    public function ubahBanyakStok(array $perubahan): void
+    {
+        $normal = [];
+
+        foreach ($perubahan as $sku => $selisih) {
+            $skuNormal = $this->normal((string) $sku);
+
+            $normal[$skuNormal] = ($normal[$skuNormal] ?? 0)
+                + (int) $selisih;
+        }
+
+        $normal = array_filter(
+            $normal,
+            static fn(int $selisih): bool => $selisih !== 0
+        );
+
+        if ($normal === []) {
+            return;
+        }
+
+        $sku = array_keys($normal);
+        sort($sku);
+
+        $case = [];
+        $bindings = [];
+
+        foreach ($sku as $kode) {
+            $case[] = 'WHEN ? THEN stok + ?';
+            $bindings[] = $kode;
+            $bindings[] = $normal[$kode];
+        }
+
+        $placeholder = implode(
+            ', ',
+            array_fill(0, count($sku), '?')
+        );
+
+        $bindings = array_merge($bindings, $sku);
+
+        $tabel = (new Produk())->getTable();
+
+        $sql = sprintf(
+            'UPDATE `%s` SET `stok` = CASE `sku` %s ELSE `stok` END WHERE `sku` IN (%s)',
+            str_replace('`', '``', $tabel),
+            implode(' ', $case),
+            $placeholder,
+        );
+
+        DB::update($sql, $bindings);
     }
     public function kunciStok(string $sku): int
     {

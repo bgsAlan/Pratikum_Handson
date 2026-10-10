@@ -39,15 +39,10 @@ final class RepositoriTransaksiEloquent implements RepositoriTransaksi
 
         $baris = Transaksi::create($transaksi);
 
-        // Peta sku -> id produk dalam SATU kueri
-        $idProduk = Produk::query()
-            ->whereIn('sku', array_column($item, 'sku'))
-            ->pluck('id', 'sku');
-
         ItemTransaksi::insert(array_map(
             static fn (array $b): array => [
                 'transaksi_id' => $baris->id,
-                'produk_id'    => $idProduk[$b['sku']],
+                'produk_id' => $b['_produk_id'],
                 'sku'          => $b['sku'],           // snapshot AB-12
                 'nama_produk'  => $b['nama'],          // snapshot AB-12
                 'harga_satuan' => $b['harga_satuan'],  // snapshot AB-12
