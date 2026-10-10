@@ -1,0 +1,46 @@
+info:
+  name: Get pemasok produk
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:8080/api/v1/pos/produk/SKU-004/pemasok
+  headers:
+    - name: x-api-key
+      value: spv-dev-001
+    - name: ""
+      value: application/json
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test("Status 200 OK", function () {
+        expect(res.status).to.equal(200);
+        });
+
+        const data = res.body.data;
+
+        test("Pemasok utama berada di urutan pertama", function () {
+        expect(data.pemasok[0].utama).to.equal(true);
+        });
+
+        test("AB-13 margin = harga jual - harga beli", function () {
+        const p = data.pemasok[0];
+
+        expect(p.margin).to.equal(data.harga - p.harga_beli);
+        expect(p.margin).to.equal(3600);
+        });
+
+        test("Margin berupa bilangan bulat rupiah", function () {
+        expect(data.pemasok[0].margin % 1).to.equal(0);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

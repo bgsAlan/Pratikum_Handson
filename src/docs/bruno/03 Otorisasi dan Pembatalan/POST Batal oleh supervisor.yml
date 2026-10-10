@@ -1,0 +1,35 @@
+info:
+  name: POST Batal oleh supervisor
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8080/api/v1/pos/transaksi/POS-20261008-0005/batal
+  headers:
+    - name: x-api-key
+      value: spv-dev-001
+  body:
+    type: json
+    data: "{\r
+
+      \  \"alasan\": \"Pelanggan salah mengambil barang\"\r
+
+      }"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: "test('Status 200 OK', function () {\r
+
+        \    expect(res.getStatus()).to.equal(200);\r
+
+        });"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

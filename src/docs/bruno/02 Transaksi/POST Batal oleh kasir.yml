@@ -1,0 +1,35 @@
+info:
+  name: POST Batal oleh kasir
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: http://localhost:8080/api/v1/pos/transaksi/POS-20261008-0005/batal
+  headers:
+    - name: x-api-key
+      value: kasir-dev-001
+  body:
+    type: json
+    data: "{\r
+
+      \  \"alasan\": \"Pelanggan salah mengambil barang\"\r
+
+      }"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: "test('Status 403 Forbidden', function () {\r
+
+        \    expect(res.getStatus()).to.equal(403);\r
+
+        });"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

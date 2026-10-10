@@ -1,0 +1,7 @@
+info:
+  name: 04 Laporan
+  type: folder
+  seq: 5
+
+request:
+  auth: inherit

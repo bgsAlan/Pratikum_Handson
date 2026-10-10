@@ -1,0 +1,61 @@
+info:
+  name: POST Transaksi member tunai
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8080/api/v1/pos/transaksi
+  headers:
+    - name: x-api-key
+      value: kasir-dev-001
+  body:
+    type: json
+    data: "{\r
+
+      \  \"item\": [\r
+
+      \    { \"sku\": \"SKU-006\", \"kuantitas\": 12 },\r
+
+      \    { \"sku\": \"SKU-002\", \"kuantitas\": 2 },\r
+
+      \    { \"sku\": \"SKU-004\", \"kuantitas\": 1 }\r
+
+      \  ],\r
+
+      \  \"member\": true,\r
+
+      \  \"metode_bayar\": \"tunai\",\r
+
+      \  \"dibayar\": 150000\r
+
+      }\r\n"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const body = res.getBody();
+
+        if (res.status === 200 || res.status === 201) {
+        if (!body.data || !body.data.nomor) {
+        throw new Error(
+        'Nomor struk tidak ditemukan. Periksa struktur response API.'
+        );
+        }
+
+        bru.setCollectionVar('nomor_struk', body.data.nomor);
+        } else {
+        throw new Error(
+        'Transaksi gagal dengan status ' + res.status +
+        '. Response: ' + JSON.stringify(body)
+        );
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

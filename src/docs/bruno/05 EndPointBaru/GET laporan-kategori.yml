@@ -1,0 +1,54 @@
+info:
+  name: GET laporan-kategori
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: localhost:8080/api/v1/pos/laporan/kategori
+  headers:
+    - name: x-api-key
+      value: kasir-dev-001
+    - name: ""
+      value: application/json
+      disabled: true
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Status 200 OK', function () {
+        expect(res.status).to.equal(200);
+        });
+
+        const isi = res.body;
+
+        test('Seluruh kategori tampil, termasuk yang tanpa penjualan', function () {
+        expect(isi.data).to.have.lengthOf(4);
+        });
+
+        test('Kategori tanpa penjualan bernilai nol, bukan null', function () {
+        const kosong = isi.data.find(function (d) {
+        return d.kode === 'alat_tulis';
+        });
+
+        expect(kosong.kuantitas).to.equal(0);
+        expect(kosong.pendapatan).to.equal(0);
+        });
+
+        test('meta.total_pendapatan sama dengan jumlah seluruh baris', function () {
+        const jumlah = isi.data.reduce(function (a, d) {
+        return a + d.pendapatan;
+        }, 0);
+
+        expect(isi.meta.total_pendapatan).to.equal(jumlah);
+        expect(jumlah).to.equal(457520);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
