@@ -1,0 +1,28 @@
+info:
+  name: GET Daftar produk (kategori=minuman)
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: http://localhost:8080/api/v1/pos/produk?kategori=minuman
+  headers:
+    - name: x-api-key
+      value: kasir-dev-001
+  params:
+    - name: kategori
+      value: minuman
+      type: query
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: test('Status 200 OK', function () { expect(res.getStatus()).to.equal(200); });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,0 +1,40 @@
+opencollection: 1.0.0
+
+info:
+  name: Barokah Mart POS — Modul 4
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
+
+request:
+  variables:
+    - name: nomor_struk
+      value: POS-20261010-0005
+  scripts:
+    - type: after-response
+      code: |-
+        test('Jumlah kueri tidak tumbuh mengikuti jumlah data', function () {
+        const jumlah = res.getHeader('X-Jumlah-Kueri');
+
+        if (jumlah === undefined || jumlah === null) {
+        throw new Error(
+        'Header X-Jumlah-Kueri tidak ada. Middleware HitungKueri terpasang?'
+        );
+        }
+
+        expect(Number(jumlah)).to.be.below(10);
+        });
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git
