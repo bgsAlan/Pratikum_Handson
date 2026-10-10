@@ -19,11 +19,31 @@ interface RepositoriProduk
 
     /** @return array<string, mixed>|null */
     public function cariSku(string $sku): ?array;
-    
+
     /** @return array<string, mixed>|null */
     public function cariPemasok(string $sku): ?array;
 
     public function kunciStok(string $sku): int;
     /** Nilai $selisih negatif mengurangi stok, positif mengembalikannya. */
     public function ubahStok(string $sku, int $selisih): void;
+    /**
+     * @param array<int, string> $sku
+     * @return array<string, array<string, mixed>>
+     */
+    public function cariBanyakSku(array $sku): array;
+
+    /**
+     * Mengunci stok beberapa produk sekaligus.
+     *
+     * @param array<int, string> $sku
+     * @return array<string, int>
+     */
+    public function kunciBanyakStok(array $sku): array;
+
+    /**
+     * Mengurangi atau menambah stok beberapa produk sekaligus.
+     *
+     * @param array<string, int> $perubahan
+     */
+    public function ubahBanyakStok(array $perubahan): void;
 }
