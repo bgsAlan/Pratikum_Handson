@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Contracts;
 
+use App\Models\Produk;
+
 /**
  * Kontrak sumber data produk.
  *
- * Service hanya bergantung pada antarmuka ini, tidak pada
- * implementasinya. Pada Modul 4 kita cukup membuat class baru
- * RepositoriProdukEloquent lalu menukar satu baris binding di
- * AppServiceProvider. Controller dan service tidak berubah sama sekali.
+ * Service bergantung pada antarmuka ini, bukan pada
+ * implementasi repository tertentu.
  */
 interface RepositoriProduk
 {
@@ -20,12 +20,17 @@ interface RepositoriProduk
     /** @return array<string, mixed>|null */
     public function cariSku(string $sku): ?array;
 
-    /** @return array<string, mixed>|null */
-    public function cariPemasok(string $sku): ?array;
+    /** Mengambil produk beserta relasi pemasoknya. */
+    public function cariPemasok(string $sku): ?Produk;
 
     public function kunciStok(string $sku): int;
-    /** Nilai $selisih negatif mengurangi stok, positif mengembalikannya. */
+
+    /**
+     * Nilai $selisih negatif mengurangi stok,
+     * positif menambah stok.
+     */
     public function ubahStok(string $sku, int $selisih): void;
+
     /**
      * @param array<int, string> $sku
      * @return array<string, array<string, mixed>>
@@ -41,7 +46,7 @@ interface RepositoriProduk
     public function kunciBanyakStok(array $sku): array;
 
     /**
-     * Mengurangi atau menambah stok beberapa produk sekaligus.
+     * Mengubah stok beberapa produk sekaligus.
      *
      * @param array<string, int> $perubahan
      */
