@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\MetodeBayar;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\V1\StrukResource;
 use App\Services\LayananKasir;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,12 +19,17 @@ final class TransaksiController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $tanggal = $request->string('tanggal')->trim()->toString() ?: now()->toDateString();
+        $tanggal = $request->string('tanggal')->trim()->toString()
+            ?: now()->toDateString();
+
         $transaksi = $this->kasir->transaksiTanggal($tanggal);
 
         return response()->json([
-            'data' => $transaksi,
-            'meta' => ['tanggal' => $tanggal, 'jumlah' => count($transaksi)],
+            'data' => StrukResource::collection($transaksi),
+            'meta' => [
+                'tanggal' => $tanggal,
+                'jumlah' => $transaksi->count(),
+            ],
         ]);
     }
 
@@ -34,7 +40,11 @@ final class TransaksiController extends Controller
             'item.*.sku' => ['required', 'string'],
             'item.*.kuantitas' => ['required', 'integer', 'min:1'],
             'member' => ['sometimes', 'boolean'],
-            'metode_bayar' => ['required', 'string', 'in:'.implode(',', array_column(MetodeBayar::cases(), 'value'))],
+            'metode_bayar' => [
+                'required',
+                'string',
+                'in:' . implode(',', array_column(MetodeBayar::cases(), 'value')),
+            ],
             'dibayar' => ['required_if:metode_bayar,tunai', 'integer', 'min:0'],
         ]);
 
@@ -44,8 +54,13 @@ final class TransaksiController extends Controller
             $transaksi = $this->kasir->proses($data, $kasir['nama']);
 
             return response()
-                ->json(['data' => $transaksi], 201)
-                ->header('Location', route('api.v1.pos.transaksi.show', $transaksi['nomor']));
+                ->json([
+                    'data' => new StrukResource($transaksi),
+                ], 201)
+                ->header(
+                    'Location',
+                    route('api.v1.pos.transaksi.show', $transaksi->nomor)
+                );
         } catch (\InvalidArgumentException | \DomainException $e) {
             return response()->json([
                 'status' => 'error',
@@ -62,7 +77,7 @@ final class TransaksiController extends Controller
     public function show(string $nomor): JsonResponse
     {
         return response()->json([
-            'data' => $this->kasir->cari($nomor),
+            'data' => new StrukResource($this->kasir->cari($nomor)),
         ]);
     }
 
@@ -75,11 +90,15 @@ final class TransaksiController extends Controller
         $kasir = $request->attributes->get('kasir');
 
         try {
-            $transaksi = $this->kasir->batalkan($nomor, $data['alasan'], $kasir['nama']);
+            $transaksi = $this->kasir->batalkan(
+                $nomor,
+                $data['alasan'],
+                $kasir['nama'],
+            );
 
             return response()->json([
-                'data' => $transaksi,
-            ], 200);
+                'data' => new StrukResource($transaksi),
+            ]);
         } catch (\InvalidArgumentException | \DomainException $e) {
             return response()->json([
                 'status' => 'error',
