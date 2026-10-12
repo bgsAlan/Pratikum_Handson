@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Domain\MetodeBayar;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\StrukResource;
 use App\Services\LayananKasir;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 final class TransaksiController extends Controller
 {
@@ -17,98 +17,47 @@ final class TransaksiController extends Controller
         private readonly LayananKasir $kasir,
     ) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $tanggal = $request->string('tanggal')->trim()->toString()
-            ?: now()->toDateString();
+        $tanggal = $request->date('tanggal')?->toDateString()
+            ?? now()->toDateString();
 
-        $transaksi = $this->kasir->transaksiTanggal($tanggal);
-
-        return response()->json([
-            'data' => StrukResource::collection($transaksi),
+        return StrukResource::collection(
+            $this->kasir->tanggal($tanggal)
+        )->additional([
             'meta' => [
                 'tanggal' => $tanggal,
-                'jumlah' => $transaksi->count(),
             ],
         ]);
     }
 
     public function store(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'item' => ['required', 'array', 'min:1'],
-            'item.*.sku' => ['required', 'string'],
-            'item.*.kuantitas' => ['required', 'integer', 'min:1'],
-            'member' => ['sometimes', 'boolean'],
-            'metode_bayar' => [
-                'required',
-                'string',
-                'in:' . implode(',', array_column(MetodeBayar::cases(), 'value')),
-            ],
-            'dibayar' => ['required_if:metode_bayar,tunai', 'integer', 'min:0'],
-        ]);
+        $struk = $this->kasir->proses(
+            $request->only([
+                'item',
+                'member',
+                'metode_bayar',
+                'dibayar',
+            ]),
+            $request->attributes->get('pos_nama'),
+        );
 
-        $kasir = $request->attributes->get('kasir');
-
-        try {
-            $transaksi = $this->kasir->proses($data, $kasir['nama']);
-
-            return response()
-                ->json([
-                    'data' => new StrukResource($transaksi),
-                ], 201)
-                ->header(
-                    'Location',
-                    route('api.v1.pos.transaksi.show', $transaksi->nomor)
-                );
-        } catch (\InvalidArgumentException | \DomainException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-            ], 422);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-            ], 422);
-        }
-    }
-
-    public function show(string $nomor): JsonResponse
-    {
-        return response()->json([
-            'data' => new StrukResource($this->kasir->cari($nomor)),
-        ]);
-    }
-
-    public function batal(Request $request, string $nomor): JsonResponse
-    {
-        $data = $request->validate([
-            'alasan' => ['required', 'string', 'min:5', 'max:200'],
-        ]);
-
-        $kasir = $request->attributes->get('kasir');
-
-        try {
-            $transaksi = $this->kasir->batalkan(
-                $nomor,
-                $data['alasan'],
-                $kasir['nama'],
+        // 201 + Location: dua hal yang sejak Modul 3 dijanjikan kontrak
+        // tetapi baru sekarang benar-benar dikirim.
+        return StrukResource::make($struk)
+            ->response()
+            ->setStatusCode(201)
+            ->header(
+                'Location',
+                route('api.v1.pos.transaksi.show', $struk->nomor)
             );
+    }
 
-            return response()->json([
-                'data' => new StrukResource($transaksi),
-            ]);
-        } catch (\InvalidArgumentException | \DomainException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-            ], 409);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-            ], 409);
-        }
+    public function show(string $nomor): StrukResource
+    {
+        return StrukResource::make(
+            $this->kasir->cari($nomor)
+        );
     }
 }
