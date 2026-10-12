@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
-use App\Http\Resources\V1\ProdukCollection;   // BARU
-use App\Queries\ProdukQuery;                  // BARU
-use App\Services\LayananKatalog;
 use App\Exceptions\ProdukTidakDitemukan;
+use App\Http\Controllers\Controller;
+use App\Http\Resources\V1\ProdukCollection;
+use App\Http\Resources\V1\ProdukResource;
+use App\Queries\ProdukQuery;
+use App\Services\LayananKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -53,8 +54,17 @@ final class ProdukController extends Controller
 
     public function pemasok(string $sku): JsonResponse
     {
-        return response()->json([
-            'data' => $this->katalog->pemasok($sku),
-        ]);
+        try {
+            $produk = $this->katalog->denganPemasok($sku);
+
+            return response()->json([
+                'data' => new ProdukResource($produk),
+            ]);
+        } catch (ProdukTidakDitemukan $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Produk tidak ditemukan.',
+            ], 404);
+        }
     }
 }
