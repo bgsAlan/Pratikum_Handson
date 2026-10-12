@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\V1\ProdukCollection;   // BARU
+use App\Queries\ProdukQuery;                  // BARU
 use App\Services\LayananKatalog;
 use App\Exceptions\ProdukTidakDitemukan;
 use Illuminate\Http\JsonResponse;
@@ -14,31 +16,28 @@ final class ProdukController extends Controller
 {
     public function __construct(
         private readonly LayananKatalog $katalog,
+        private readonly ProdukQuery $kueri,          // BARU
     ) {}
 
     public function index(Request $request): JsonResponse
     {
-        $kategori = $request->string('kategori')->trim()->toString();
-        $cari = $request->string('cari')->trim()->toString();
+        // Batas atas WAJIB: 1..100, bawaan 15
+        $perHalaman = max(1, min($request->integer('per_halaman', 15), 100));
 
-        $produk = $this->katalog->daftar(
-            kategori: $kategori !== '' ? $kategori : null,
-            cari: $cari !== '' ? $cari : null,
-        );
+        $produk = $this->kueri->terapkan($request)->paginate($perHalaman);
 
-        return response()->json([
-            'data' => $produk,
-            'meta' => [
-                'jumlah' => count($produk),
-                'kategori' => $kategori !== '' ? $kategori : 'semua',
-            ],
-        ]);
+        // withQueryString(): links.next membawa filter
+        $koleksi = new ProdukCollection($produk->withQueryString());
+
+        return $koleksi
+            ->additional(['kolom' => $this->kueri->kolomDiminta($request)])
+            ->response();
     }
 
+    // show() dan pemasok() TETAP, punya Hana
     public function show(string $sku): JsonResponse
     {
         try {
-            // Memanggil method ambil() dari LayananKatalog
             $produk = $this->katalog->ambil($sku);
 
             return response()->json([
@@ -51,6 +50,7 @@ final class ProdukController extends Controller
             ], 404);
         }
     }
+
     public function pemasok(string $sku): JsonResponse
     {
         return response()->json([
