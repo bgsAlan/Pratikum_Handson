@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
-use App\Models\Pemasok;
 use App\Contracts\RepositoriProduk;
 use App\Models\Produk;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,9 +12,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Pengganti RepositoriProdukArray dari Modul 3.
  *
- * Bentuk nilai kembaliannya sengaja dijaga persis sama: array asosiatif
- * berisi sku, nama, kategori, harga, dan stok. Karena itulah LayananKatalog,
- * LayananKasir, dan seluruh controller tidak berubah satu baris pun.
+ * Bentuk nilai kembaliannya dijaga untuk method-method
+ * katalog dan kasir yang masih menggunakan array.
  */
 final class RepositoriProdukEloquent implements RepositoriProduk
 {
@@ -27,15 +25,18 @@ final class RepositoriProdukEloquent implements RepositoriProduk
             ->map($this->keArray(...))
             ->all();
     }
+
     private function normal(string $sku): string
     {
         return strtoupper(trim($sku));
     }
+
     public function cariSku(string $sku): ?array
     {
         $produk = $this->dasar(aktifSaja: false)
-            ->where('produk.sku', strtoupper(trim($sku)))
+            ->where('produk.sku', $this->normal($sku))
             ->first();
+
         return $produk === null ? null : $this->keArray($produk);
     }
 
@@ -59,7 +60,7 @@ final class RepositoriProdukEloquent implements RepositoriProduk
         return $this->dasar(aktifSaja: false)
             ->whereIn('produk.sku', $sku)
             ->get()
-            ->mapWithKeys(fn(Produk $produk) => [
+            ->mapWithKeys(fn (Produk $produk) => [
                 $produk->sku => [
                     ...$this->keArray($produk),
                     '_produk_id' => $produk->id,
@@ -92,7 +93,7 @@ final class RepositoriProdukEloquent implements RepositoriProduk
             ->orderBy('sku')
             ->lockForUpdate()
             ->get(['sku', 'stok'])
-            ->mapWithKeys(fn(Produk $produk) => [
+            ->mapWithKeys(fn (Produk $produk) => [
                 $produk->sku => (int) $produk->stok,
             ])
             ->all();
@@ -103,8 +104,6 @@ final class RepositoriProdukEloquent implements RepositoriProduk
      *
      * @param array<string, int> $perubahan
      */
-
-
     public function ubahBanyakStok(array $perubahan): void
     {
         $normal = [];
@@ -118,7 +117,7 @@ final class RepositoriProdukEloquent implements RepositoriProduk
 
         $normal = array_filter(
             $normal,
-            static fn(int $selisih): bool => $selisih !== 0
+            static fn (int $selisih): bool => $selisih !== 0
         );
 
         if ($normal === []) {
@@ -155,39 +154,38 @@ final class RepositoriProdukEloquent implements RepositoriProduk
 
         DB::update($sql, $bindings);
     }
+
     public function kunciStok(string $sku): int
     {
-        // lockForUpdate() menahan baris ini sampai transaksi basis data
-        // selesai, sehingga dua kasir yang menjual barang terakhir pada
-        // saat bersamaan tidak dapat membaca stok yang sama.
         return (int) Produk::query()
-            ->where('sku', strtoupper(trim($sku)))
+            ->where('sku', $this->normal($sku))
             ->lockForUpdate()
             ->value('stok');
     }
+
     public function ubahStok(string $sku, int $selisih): void
     {
-        // increment() menghasilkan satu perintah UPDATE atomik:
-        // UPDATE produk SET stok = stok + ? WHERE sku = ?
-        // Ini berbeda dari membaca stok ke PHP lalu menuliskannya kembali,
-        // yang membuka celah balapan (race condition).
-        // Praktik Pemrograman Back End · Hands-On Modul 4 · Studi Kasus Point of Sales
-        // D3 Teknik Informatika – Sekolah Vokasi UNS | Halaman 23 dari 47
         Produk::query()
-            ->where('sku', strtoupper(trim($sku)))
+            ->where('sku', $this->normal($sku))
             ->increment('stok', $selisih);
     }
+
     /**
-     * Kueri dasar: produk digabung dengan kategori lewat join eksplisit.
-     * Relasi Eloquent (belongsTo/hasMany) baru diperkenalkan pada Modul 5.
+     * Kueri dasar produk beserta kategori.
      */
     private function dasar(bool $aktifSaja = true): Builder
     {
         return Produk::query()
             ->with('kategori:id,kode')
-            ->when($aktifSaja, fn(Builder $q) => $q->aktif());
+            ->when(
+                $aktifSaja,
+                fn (Builder $q) => $q->aktif()
+            );
     }
-    /** @return array<string, mixed> */
+
+    /**
+     * @return array<string, mixed>
+     */
     private function keArray(Produk $produk): array
     {
         return [
@@ -198,30 +196,15 @@ final class RepositoriProdukEloquent implements RepositoriProduk
             'stok' => $produk->stok,
         ];
     }
-    public function cariPemasok(string $sku): ?array
+
+    /**
+     * Mengambil produk beserta pemasok dan data pasokannya.
+     */
+    public function cariPemasok(string $sku): ?Produk
     {
-        $produk = Produk::query()
-            ->with('pemasok')
+        return Produk::query()
+            ->with(['pemasok.pasokan'])
             ->where('sku', $this->normal($sku))
             ->first();
-
-        if ($produk === null) {
-            return null;
-        }
-
-        return [
-            'sku'     => $produk->sku,
-            'nama'    => $produk->nama,
-            'harga'   => $produk->harga,
-            'pemasok' => $produk->pemasok
-                ->map(static fn(Pemasok $p): array => [
-                    'kode'       => $p->kode,
-                    'nama'       => $p->nama,
-                    'kota'       => $p->kota,
-                    'harga_beli' => (int) $p->pasokan->harga_beli,
-                    'utama'      => (bool) $p->pasokan->utama,
-                ])
-                ->all(),
-        ];
     }
 }

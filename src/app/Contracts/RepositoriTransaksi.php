@@ -4,18 +4,17 @@ declare(strict_types=1);
 
 namespace App\Contracts;
 
+use App\Models\Transaksi;
+use Illuminate\Database\Eloquent\Collection;
+
 /**
  * Kontrak sumber data transaksi.
- * Bentuknya tidak berubah sejak Modul 3;
- * hanya implementasinya yang berganti dari berkas JSON ke Eloquent.
  */
 interface RepositoriTransaksi
 {
-    /** @return array<int, array<string, mixed>> */
-    public function tanggal(string $tanggal): array;
+    public function tanggal(string $tanggal): Collection;
 
-    /** @return array<string, mixed>|null */
-    public function cariNomor(string $nomor): ?array;
+    public function cariNomor(string $nomor): ?Transaksi;
 
     /** @param array<string, mixed> $transaksi */
     public function simpan(array $transaksi): void;

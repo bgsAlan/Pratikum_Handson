@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
-use App\Services\LayananKatalog;
 use App\Exceptions\ProdukTidakDitemukan;
+use App\Http\Controllers\Controller;
+use App\Http\Resources\V1\ProdukResource;
+use App\Services\LayananKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -38,7 +39,6 @@ final class ProdukController extends Controller
     public function show(string $sku): JsonResponse
     {
         try {
-            // Memanggil method ambil() dari LayananKatalog
             $produk = $this->katalog->ambil($sku);
 
             return response()->json([
@@ -51,10 +51,20 @@ final class ProdukController extends Controller
             ], 404);
         }
     }
+
     public function pemasok(string $sku): JsonResponse
     {
-        return response()->json([
-            'data' => $this->katalog->pemasok($sku),
-        ]);
+        try {
+            $produk = $this->katalog->denganPemasok($sku);
+
+            return response()->json([
+                'data' => new ProdukResource($produk),
+            ]);
+        } catch (ProdukTidakDitemukan $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Produk tidak ditemukan.',
+            ], 404);
+        }
     }
 }

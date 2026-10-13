@@ -13,6 +13,9 @@ use App\Exceptions\PembayaranKurang;
 use App\Exceptions\StokTidakCukup;
 use App\Exceptions\TransaksiSudahDibatalkan;
 use App\Exceptions\TransaksiTidakDitemukan;
+use App\Exceptions\ProdukTidakDitemukan;
+use App\Models\Transaksi;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -48,19 +51,25 @@ final class LayananKasir
             $produk = $produkTersedia[$kode] ?? null;
 
             if ($produk === null) {
-                throw new \App\Exceptions\ProdukTidakDitemukan($masukan['sku']);
+                throw new ProdukTidakDitemukan($masukan['sku']);
             }
 
             $kuantitas = (int) $masukan['kuantitas'];
 
             if ($kuantitas > $produk['stok']) {
-                throw new StokTidakCukup($produk['sku'], $kuantitas, $produk['stok']);
+                throw new StokTidakCukup(
+                    $produk['sku'],
+                    $kuantitas,
+                    $produk['stok'],
+                );
             }
 
             $hargaSatuan = new Uang($produk['harga']);
             $totalBaris = $hargaSatuan->kali($kuantitas);
 
-            $diskonBaris = $kuantitas >= $minimalGrosir ? $totalBaris->persen($persenGrosir) : Uang::nol();
+            $diskonBaris = $kuantitas >= $minimalGrosir
+                ? $totalBaris->persen($persenGrosir)
+                : Uang::nol();
 
             $subtotal = $subtotal->tambah($totalBaris);
             $diskonItem = $diskonItem->tambah($diskonBaris);
@@ -77,54 +86,46 @@ final class LayananKasir
             ];
         }
 
-        $diskonMember = $member ? $subtotal->kurang($diskonItem)->persen((float) config('pos.member.persen')) : Uang::nol();
+        $diskonMember = $member
+            ? $subtotal->kurang($diskonItem)->persen(
+                (float) config('pos.member.persen')
+            )
+            : Uang::nol();
 
         $totalDiskon = $diskonItem->tambah($diskonMember);
         $dpp = $subtotal->kurang($totalDiskon);
         $ppn = $dpp->persen((float) config('pos.ppn_persen'));
         $total = $dpp->tambah($ppn);
+        $totalBayar = $total->bulatkanKeAtas(
+            (int) config('pos.pembulatan')
+        );
 
-        $totalBayar = $total->bulatkanKeAtas((int) config('pos.pembulatan'));
-
-        return ['item' => $baris, 'subtotal' => $subtotal->rupiah, 'diskon_grosir' => $diskonItem->rupiah, 'diskon_member' => $diskonMember->rupiah, 'total_diskon' => $totalDiskon->rupiah, 'dpp' => $dpp->rupiah, 'ppn' => $ppn->rupiah, 'total' => $total->rupiah, 'pembulatan' => $totalBayar->kurang($total)->rupiah, 'total_bayar' => $totalBayar->rupiah,];
+        return [
+            'item' => $baris,
+            'subtotal' => $subtotal->rupiah,
+            'diskon_grosir' => $diskonItem->rupiah,
+            'diskon_member' => $diskonMember->rupiah,
+            'total_diskon' => $totalDiskon->rupiah,
+            'dpp' => $dpp->rupiah,
+            'ppn' => $ppn->rupiah,
+            'total' => $total->rupiah,
+            'pembulatan' => $totalBayar->kurang($total)->rupiah,
+            'total_bayar' => $totalBayar->rupiah,
+        ];
     }
 
-    /**
-     * Memproses transaksi kasir.
-     *
-     * Urutan validasi Langkah 17:
-     * 1. Hitung katalog terlebih dahulu.
-     * 2. Kunci stok dan periksa ulang stok.
-     * 3. Validasi pembayaran.
-     * 4. Simpan transaksi.
-     * 5. Kurangi stok.
-     */
-    public function proses(array $data, string $kasir): array
+    public function proses(array $data, string $kasir): Transaksi
     {
-        return DB::transaction(function () use ($data, $kasir): array {
-            // 1. Validasi katalog dan stok awal terlebih dahulu.
-            //
-            // hitung() menggunakan cariSku(). Jika SKU tidak ditemukan,
-            // proses langsung menghasilkan ProdukTidakDitemukan.
+        return DB::transaction(function () use ($data, $kasir): Transaksi {
             $metode = MetodeBayar::from($data['metode_bayar']);
             $member = (bool) ($data['member'] ?? false);
 
-            $rincian = $this->hitung(
-                $data['item'],
-                $member
-            );
-
-            // 2. Kunci stok dan lakukan pemeriksaan ulang.
-            //
-            // Pemeriksaan kedua dilakukan setelah baris produk dikunci
-            // sehingga stok yang digunakan untuk menentukan transaksi
-            // merupakan stok dalam kondisi terkunci (AB-8).
+            $rincian = $this->hitung($data['item'], $member);
 
             $jumlahPerSku = [];
 
             foreach ($data['item'] as $baris) {
                 $sku = strtoupper(trim($baris['sku']));
-
                 $jumlahPerSku[$sku] = ($jumlahPerSku[$sku] ?? 0)
                     + (int) $baris['kuantitas'];
             }
@@ -135,24 +136,17 @@ final class LayananKasir
 
             foreach ($jumlahPerSku as $sku => $kuantitas) {
                 if (!array_key_exists($sku, $stokTerkunci)) {
-                    throw new \App\Exceptions\ProdukTidakDitemukan($sku);
+                    throw new ProdukTidakDitemukan($sku);
                 }
 
                 $tersedia = $stokTerkunci[$sku];
 
                 if ($kuantitas > $tersedia) {
-                    throw new StokTidakCukup(
-                        $sku,
-                        $kuantitas,
-                        $tersedia
-                    );
+                    throw new StokTidakCukup($sku, $kuantitas, $tersedia);
                 }
             }
 
-            // 3. Validasi pembayaran (AB-7 dan AB-9).
-            $totalBayar = new Uang(
-                $rincian['total_bayar']
-            );
+            $totalBayar = new Uang($rincian['total_bayar']);
 
             $dibayar = $metode->butuhKembalian()
                 ? new Uang((int) ($data['dibayar'] ?? 0))
@@ -164,8 +158,7 @@ final class LayananKasir
                 );
             }
 
-            // 4. Susun dan simpan struk.
-            $transaksi = array_merge(
+            $dataTransaksi = array_merge(
                 [
                     'nomor' => $this->nomorBaru(),
                     'kasir' => $kasir,
@@ -176,47 +169,49 @@ final class LayananKasir
                 $rincian,
                 [
                     'dibayar' => $dibayar->rupiah,
-                    'kembalian' => $dibayar
-                        ->kurang($totalBayar)
-                        ->rupiah,
+                    'kembalian' => $dibayar->kurang($totalBayar)->rupiah,
                 ],
             );
 
-            $this->transaksi->simpan($transaksi);
+            $this->transaksi->simpan($dataTransaksi);
 
-            // 5. Kurangi stok setelah transaksi berhasil disimpan (AB-11).
             $perubahanStok = [];
+
             foreach ($jumlahPerSku as $sku => $kuantitas) {
                 $perubahanStok[$sku] = -$kuantitas;
             }
+
             $this->produk->ubahBanyakStok($perubahanStok);
 
-            return $this->transaksi->cariNomor(
-                $transaksi['nomor']
+            $hasil = $this->transaksi->cariNomor(
+                $dataTransaksi['nomor']
             );
+
+            if ($hasil === null) {
+                throw new TransaksiTidakDitemukan($dataTransaksi['nomor']);
+            }
+
+            return $hasil;
         });
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function batalkan(
         string $nomor,
         string $alasan,
         string $olehKasir,
-    ): array {
+    ): Transaksi {
         return DB::transaction(function () use (
             $nomor,
             $alasan,
             $olehKasir,
-        ): array {
+        ): Transaksi {
             $transaksi = $this->transaksi->cariNomor($nomor);
 
             if ($transaksi === null) {
                 throw new TransaksiTidakDitemukan($nomor);
             }
 
-            if ($transaksi['status'] === StatusTransaksi::Batal->value) {
+            if ($transaksi->status === StatusTransaksi::Batal) {
                 throw new TransaksiSudahDibatalkan($nomor);
             }
 
@@ -227,30 +222,33 @@ final class LayananKasir
                 'dibatalkan_pada' => now(),
             ]);
 
-            // AB-11: stok barang dikembalikan.
             $perubahanStok = [];
-            foreach ($transaksi['item'] as $baris) {
-                $sku = strtoupper(trim($baris['sku']));
+
+            foreach ($transaksi->item as $baris) {
+                $sku = strtoupper(trim($baris->sku));
+
                 $perubahanStok[$sku] = ($perubahanStok[$sku] ?? 0)
-                    + (int) $baris['kuantitas'];
+                    + (int) $baris->kuantitas;
             }
+
             $this->produk->ubahBanyakStok($perubahanStok);
-            return $this->transaksi->cariNomor($nomor);
+
+            $hasil = $this->transaksi->cariNomor($nomor);
+
+            if ($hasil === null) {
+                throw new TransaksiTidakDitemukan($nomor);
+            }
+
+            return $hasil;
         });
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    public function transaksiTanggal(string $tanggal): array
+    public function transaksiTanggal(string $tanggal): Collection
     {
         return $this->transaksi->tanggal($tanggal);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function cari(string $nomor): array
+    public function cari(string $nomor): Transaksi
     {
         $transaksi = $this->transaksi->cariNomor($nomor);
 
@@ -261,9 +259,6 @@ final class LayananKasir
         return $transaksi;
     }
 
-    /**
-     * Nomor struk POS-YYYYMMDD-0001.
-     */
     private function nomorBaru(): string
     {
         $tanggal = now()->toDateString();
@@ -275,5 +270,3 @@ final class LayananKasir
         );
     }
 }
-
-
