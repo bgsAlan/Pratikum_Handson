@@ -27,7 +27,7 @@ Route::get('/v1/ping', fn() => response()->json([
 
 Route::prefix('v1/pos')
     ->name('api.v1.pos.')
-    ->middleware('kasir') // berlaku untuk SELURUH rute di dalam grup
+    ->middleware(['kasir', 'saring.kolom']) // berlaku untuk SELURUH rute di dalam grup
     ->group(function () {
 
         /* ---------------- Katalog produk ---------------- */
